@@ -21,6 +21,9 @@ export interface LightboxOptions {
   filename?: string;
   /** 提供了才顯示刪除按鈕;點刪除先關燈箱再回調。 */
   onDelete?: () => void;
+  /** 提供了才能切到上一張 / 下一張(回調負責開啟那一張的燈箱)。 */
+  onPrev?: () => void;
+  onNext?: () => void;
 }
 
 /** 同一時刻只允許一個燈箱,重複呼叫先關舊的。 */
@@ -48,7 +51,11 @@ export function openLightbox(options: LightboxOptions): void {
       prompt: options.prompt,
       filename: options.filename,
       deletable: !!options.onDelete,
+      hasPrev: !!options.onPrev,
+      hasNext: !!options.onNext,
       onClose: close,
+      onPrev: () => options.onPrev?.(),
+      onNext: () => options.onNext?.(),
       onDelete: () => {
         close();
         options.onDelete?.();

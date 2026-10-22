@@ -408,27 +408,23 @@ function onThumbClick(image: GalleryImage): void {
 }
 
 /**
- * 刪除選中的圖。**只刪檔案,不碰聊天記錄**(理由見檔案頂部註釋)。
+ * 刪除圖片(多選刪除與燈箱裡的單張刪除共用)。**只刪檔案,不碰聊天記錄**(理由見檔案頂部註釋)。
  *
  * 刪完做三件事:標記缺失(讓本會話裡已開啟的樓層卡片立刻降級,不必等它自己 404)、
  * 就地從列表摘掉(不重新 load,免得把使用者的展開態和已載入批次全重置)、清理體積快取。
  */
-async function deleteSelected(): Promise<void> {
-  if (!selectedCount.value || deleting.value) return;
-  const targets = groups.value
-    .flatMap(group => group.images)
-    .filter(image => selected.value.has(image.key));
-  if (!targets.length) return;
+async function deleteImages(targets: GalleryImage[]): Promise<boolean> {
+  if (!targets.length || deleting.value) return false;
 
   const ok = await confirmDialog({
-    title: `刪除 ${targets.length} 張圖片`,
+    title: targets.length === 1 ? '刪除這張圖片' : `刪除 ${targets.length} 張圖片`,
     text:
-      `將從磁碟刪除這 ${targets.length} 張圖片及其提示詞側寫檔案，無法恢復。\n\n` +
+      `將從磁碟刪除${targets.length === 1 ? '這張圖片' : `這 ${targets.length} 張圖片`}及其提示詞側寫檔案，無法恢復。\n\n` +
       '聊天記錄不會被改動：樓層卡片會顯示「圖片檔案已刪除」並退回可重新生成的狀態。',
     confirmText: '刪除',
     tone: 'danger',
   });
-  if (!ok) return;
+  if (!ok) return false;
 
   deleting.value = true;
   try {
@@ -466,9 +462,24 @@ async function deleteSelected(): Promise<void> {
 
     if (failed) toastr.error(`${failed} 張刪除失敗，詳情見控制台`, '虎哩繪');
     else toastr.success(`已刪除 ${done.size} 張圖片`, '虎哩繪');
+    return failed === 0;
   } finally {
     deleting.value = false;
   }
+}
+
+async function deleteSelected(): Promise<void> {
+  await deleteImages(groups.value.flatMap(group => group.images).filter(image => selected.value.has(image.key)));
+}
+
+/**
+ * 燈箱裡刪單張:像手機相簿一樣,刪完直接看同資料夾的下一張(刪的是最後一張就看上一張,
+ * 整個資料夾刪光才回相簿);確認時按取消則回到原本那張。
+ */
+async function deleteFromLightbox(image: GalleryImage, after: GalleryImage | undefined): Promise<void> {
+  const deleted = await deleteImages([image]);
+  if (!deleted) void open(image);
+  else if (after) void open(after);
 }
 
 /** 正在取側寫的那張圖(點選後到燈箱開啟之間,給個轉圈別讓人以為沒點上)。 */
@@ -492,7 +503,19 @@ async function open(image: GalleryImage): Promise<void> {
       pending.value = '';
     }
   }
-  openLightbox({ src: image.src, filename: image.download, prompt: prompt ?? '' });
+  // 同一資料夾(同一角色)裡前後切換;到頭/到尾就不給該方向
+  const siblings = groups.value.find(group => group.images.some(item => item.key === image.key))?.images ?? [];
+  const index = siblings.findIndex(item => item.key === image.key);
+  const prev = index > 0 ? siblings[index - 1] : undefined;
+  const next = index >= 0 && index < siblings.length - 1 ? siblings[index + 1] : undefined;
+  openLightbox({
+    src: image.src,
+    filename: image.download,
+    prompt: prompt ?? '',
+    onDelete: () => void deleteFromLightbox(image, next ?? prev),
+    onPrev: prev ? () => void open(prev) : undefined,
+    onNext: next ? () => void open(next) : undefined,
+  });
 }
 </script>
 

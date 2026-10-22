@@ -21,6 +21,9 @@ import { modalHost } from '@/state/ui';
  * 2. 圖片不加 user-select:none / -webkit-touch-callout:none / draggable=false。
  * 3. 顯式 touch-action:auto 抵消 ST 的 `body{touch-action:none}`
  *    (css/mobile-styles.css:251,移動端 ≤1000px 全域性)——它會干擾部分引擎的長按判定。
+ * 【左右切換】有上一張/下一張時:桌面用 ← → 鍵或兩側箭頭;移動端未放大時左右滑。
+ * 滑動只掛 passive 的 touchstart/touchend(只讀座標、絕不 preventDefault),長按不位移,
+ * 不會被誤判成滑動,也不影響上面的長按儲存;放大後不判定滑動,左右滑仍是原生平移。
  * 【二段放大與平移】點選圖片在「適應螢幕 ↔ 原始尺寸」間切換(放大 = 1:1 檢查
  * 臉/手等細節,決定留還是重繪)。放大後的平移分兩條路:
  * - 桌面:滑鼠拖拽(pointer 事件只認 pointerType==='mouse',5px 閾值區分點選與拖動);
@@ -37,9 +40,12 @@ const props = defineProps<{
   filename?: string;
   /** 有值才顯示刪除按鈕。 */
   deletable?: boolean;
+  /** 有上一張 / 下一張時才顯示箭頭、才響應方向鍵與滑動。 */
+  hasPrev?: boolean;
+  hasNext?: boolean;
 }>();
 
-const emit = defineEmits<{ close: []; delete: [] }>();
+const emit = defineEmits<{ close: []; delete: []; prev: []; next: [] }>();
 
 /** 適應螢幕 ↔ 原始尺寸。 */
 const zoomed = ref(false);
@@ -113,7 +119,36 @@ function onKeydown(event: KeyboardEvent): void {
   if (event.key === 'Escape') {
     event.stopPropagation();
     emit('close');
+  } else if (event.key === 'ArrowLeft' && props.hasPrev) {
+    event.stopPropagation();
+    emit('prev');
+  } else if (event.key === 'ArrowRight' && props.hasNext) {
+    event.stopPropagation();
+    emit('next');
   }
+}
+
+/** 左右滑切換(僅未放大、單指;passive 監聽,只讀座標)。 */
+let swipe: { x: number; y: number; at: number } | null = null;
+
+function onTouchStart(event: TouchEvent): void {
+  const touch = event.touches[0];
+  swipe = !zoomed.value && event.touches.length === 1 && touch
+    ? { x: touch.clientX, y: touch.clientY, at: Date.now() }
+    : null;
+}
+
+function onTouchEnd(event: TouchEvent): void {
+  const start = swipe;
+  swipe = null;
+  const touch = event.changedTouches[0];
+  if (!start || !touch || zoomed.value) return;
+  const dx = touch.clientX - start.x;
+  const dy = touch.clientY - start.y;
+  // 夠遠、夠快、以水平為主才算滑動;其餘(點選、長按、上下捲提示詞)一概不管
+  if (Math.abs(dx) < 50 || Math.abs(dx) < Math.abs(dy) * 1.5 || Date.now() - start.at > 800) return;
+  if (dx > 0 && props.hasPrev) emit('prev');
+  else if (dx < 0 && props.hasNext) emit('next');
 }
 
 onMounted(() => {
@@ -175,6 +210,8 @@ const promptText = computed(() => (props.prompt ?? '').trim());
         class="bbi-lightbox__stage"
         :data-zoomed="zoomed ? '1' : ''"
         @click.stop="emit('close')"
+        @touchstart.passive="onTouchStart"
+        @touchend.passive="onTouchEnd"
       >
         <img
           class="bbi-lightbox__img"
@@ -189,6 +226,27 @@ const promptText = computed(() => (props.prompt ?? '').trim());
           @dragstart="onDragStart"
         />
       </div>
+
+      <button
+        v-if="hasPrev"
+        class="bbi-lb-btn bbi-lb-nav bbi-lb-nav--prev"
+        type="button"
+        title="上一張 (←)"
+        aria-label="上一張"
+        @click.stop="emit('prev')"
+      >
+        <Icon name="chevron" :size="20" />
+      </button>
+      <button
+        v-if="hasNext"
+        class="bbi-lb-btn bbi-lb-nav bbi-lb-nav--next"
+        type="button"
+        title="下一張 (→)"
+        aria-label="下一張"
+        @click.stop="emit('next')"
+      >
+        <Icon name="chevron" :size="20" />
+      </button>
 
       <p v-if="promptText" class="bbi-lightbox__prompt" @click.stop>{{ promptText }}</p>
     </div>
@@ -241,6 +299,32 @@ const promptText = computed(() => (props.prompt ?? '').trim());
 .bbi-lb-btn:hover {
   background: oklch(1 0 0 / 0.2);
   border-color: oklch(1 0 0 / 0.4);
+}
+
+/* 左右切換箭頭:垂直置中貼兩側;chevron 原本朝下,轉 90° 成左右 */
+.bbi-lb-nav {
+  position: absolute;
+  top: 50%;
+  width: 44px;
+  height: 44px;
+  margin-top: -22px;
+  background: oklch(0 0 0 / 0.45);
+}
+
+.bbi-lb-nav--prev {
+  left: 12px;
+}
+
+.bbi-lb-nav--next {
+  right: 12px;
+}
+
+.bbi-lb-nav--prev :deep(svg) {
+  transform: rotate(90deg);
+}
+
+.bbi-lb-nav--next :deep(svg) {
+  transform: rotate(-90deg);
 }
 
 .bbi-lb-btn--danger:hover {
