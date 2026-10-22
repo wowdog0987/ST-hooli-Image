@@ -1,3 +1,5 @@
+![虎哩繪](docs/banner.png)
+
 # 虎哩繪 · SillyTavern 劇情配圖外掛
 
 > 讓 AI 寫出的每一段精彩劇情，都有一張對得上的圖。
