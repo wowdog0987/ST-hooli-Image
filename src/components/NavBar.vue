@@ -2,16 +2,11 @@
 import Icon from '@/components/Icon.vue';
 import { PAGES } from '@/pages/registry';
 import { closePanel, ui } from '@/state/ui';
-import { updateState } from '@/update';
 
 const props = defineProps<{ placement: 'top' | 'bottom'; narrow?: boolean }>();
 
-function showUpdateDot(id: string): boolean {
-  return id === 'settings' && updateState.available;
-}
-
-// 移动端:再点一下当前页的导航按钮即关闭整窗(省得去够右上角的 ×);非当前页正常切页。
-// 受 ui.navTapClose 开关控制(默认开,怕误触的用户可在设置里关)。
+// 移動端:再點一下當前頁的導航按鈕即關閉整窗(省得去夠右上角的 ×);非當前頁正常切頁。
+// 受 ui.navTapClose 開關控制(預設開,怕誤觸的使用者可在設定裡關)。
 function onNavClick(id: string) {
   if (props.narrow && ui.navTapClose && ui.activePage === id) {
     closePanel();
@@ -36,9 +31,8 @@ function onNavClick(id: string) {
     >
       <span class="bbi-nav-icon-wrap">
         <Icon :name="p.id" class="bbi-nav-icon" />
-        <span v-if="showUpdateDot(p.id)" class="bbi-nav-dot" aria-label="有可用更新"></span>
       </span>
-      <!-- 顶部带文字;但窄屏(移动端)顶部也只放图标,否则一排带字胶囊横向放不下,会把后面的项挤出屏幕 -->
+      <!-- 頂部帶文字;但窄屏(移動端)頂部也只放圖示,否則一排帶字膠囊橫向放不下,會把後面的項擠出螢幕 -->
       <span v-if="placement === 'top' && !narrow" class="bbi-nav-label">{{ p.label }}</span>
     </button>
   </nav>
@@ -51,7 +45,7 @@ function onNavClick(id: string) {
   flex: 0 0 auto;
 }
 
-/* —— 顶部:胶囊分段,横排图标+字 —— */
+/* —— 頂部:膠囊分段,橫排圖示+字 —— */
 .bbi-nav.is-top {
   gap: 4px;
   padding: 10px 14px;
@@ -85,8 +79,8 @@ function onNavClick(id: string) {
   font-size: 17px;
 }
 
-/* —— 顶部 + 窄屏(移动端):降级为仅图标,样式与底部导航完全一致(尺寸/配色/选中态),
-   仅位置在顶,免得带字胶囊横向溢出把后面的项挤出屏幕 —— */
+/* —— 頂部 + 窄屏(移動端):降級為僅圖示,樣式與底部導航完全一致(尺寸/配色/選中態),
+   僅位置在頂,免得帶字膠囊橫向溢位把後面的項擠出螢幕 —— */
 .bbi-nav.is-top.is-narrow {
   justify-content: space-around;
   gap: 0;
@@ -113,7 +107,7 @@ function onNavClick(id: string) {
   font-size: 23px;
 }
 
-/* —— 底部:仅图标,等分,触达区大 —— */
+/* —— 底部:僅圖示,等分,觸達區大 —— */
 .bbi-nav.is-bottom {
   justify-content: space-around;
   padding: 6px 6px;
@@ -151,17 +145,6 @@ function onNavClick(id: string) {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-}
-.bbi-nav-dot {
-  position: absolute;
-  top: -2px;
-  right: -3px;
-  width: 7px;
-  height: 7px;
-  border-radius: var(--bbi-radius-pill);
-  background: var(--bbi-danger);
-  box-shadow: 0 0 0 1.5px var(--bbi-surface);
-  pointer-events: none;
 }
 
 </style>

@@ -7,13 +7,14 @@ import { registerPublicInterface } from '@/public/register';
 import { bindCharTagSync } from '@/state/charTags';
 import { initGlobalCharTags } from '@/state/globalCharTags';
 import { hydrateSettings } from '@/state/settings';
+import { bindWorldSettingSync } from '@/state/worldSetting';
 import { ui } from '@/state/ui';
 import { guardEditableArrowKeys } from '@/st/keyboard';
 import { ensureImageTagRegexRegistered } from '@/st/imageTagRegex';
+import { bindLegacyImageTagMigration } from '@/st/legacyImageTag';
 import { syncTopBarButton } from '@/topbar';
-import { checkForUpdate } from '@/update';
 import { versionedAssetUrl } from '@/version';
-// 这两行让 Vite 把全局样式打进 dist/index.css(随后注入 shadow root)
+// 這兩行讓 Vite 把全域性樣式打進 dist/index.css(隨後注入 shadow root)
 import '@/styles/base.css';
 import '@/styles/theme.css';
 import { createApp, watch } from 'vue';
@@ -21,8 +22,8 @@ import { createApp, watch } from 'vue';
 const HOST_ID = 'bbi-app-host';
 
 /**
- * 可继承的排版属性——shadow DOM 不隔离继承,这些会透过 host 从 ST 漏进来。
- * 在 host 上用内联 !important 钉死,从根上切断继承链。
+ * 可繼承的排版屬性——shadow DOM 不隔離繼承,這些會透過 host 從 ST 漏進來。
+ * 在 host 上用內聯 !important 釘死,從根上切斷繼承鏈。
  */
 const INHERITED_RESET: Record<string, string> = {
   'font-family':
@@ -44,7 +45,7 @@ const INHERITED_RESET: Record<string, string> = {
 };
 
 function mount() {
-  // host 元素留在 ST 的 light DOM,Vue 应用整体活在它的 shadow root 里。
+  // host 元素留在 ST 的 light DOM,Vue 應用整體活在它的 shadow root 裡。
   let host = document.getElementById(HOST_ID);
   if (!host) {
     host = document.createElement('div');
@@ -52,7 +53,7 @@ function mount() {
     document.body.appendChild(host);
   }
 
-  // host 不参与布局(窗口内部用 fixed 定位),并切断继承
+  // host 不參與佈局(視窗內部用 fixed 定位),並切斷繼承
   host.style.setProperty('display', 'contents', 'important');
   for (const [prop, value] of Object.entries(INHERITED_RESET)) {
     host.style.setProperty(prop, value, 'important');
@@ -62,11 +63,11 @@ function mount() {
   shadow.textContent = '';
   guardEditableArrowKeys(shadow);
 
-  // 把我们构建出的 dist/index.css 以 <link> 注入 shadow root——
-  // 这样样式只在这棵 shadow 树内生效,ST 全局样式进不来,我们的也出不去。
+  // 把我們構建出的 dist/index.css 以 <link> 注入 shadow root——
+  // 這樣樣式只在這棵 shadow 樹內生效,ST 全域性樣式進不來,我們的也出不去。
   const link = document.createElement('link');
   link.rel = 'stylesheet';
-  // index.js 与 index.css 在 dist 同级,据当前模块 URL 推导,部署路径无关。
+  // index.js 與 index.css 在 dist 同級,據當前模組 URL 推導,部署路徑無關。
   link.href = versionedAssetUrl('./index.css', import.meta.url);
   shadow.appendChild(link);
 
@@ -82,13 +83,13 @@ function mount() {
 $(() => {
   mount();
   injectMenuButton();
-  // 顶栏快速打开按钮:按开关注入/移除。watch 在开关变化(含 hydrate 回灌真值)时同步。
+  // 頂欄快速開啟按鈕:按開關注入/移除。watch 在開關變化(含 hydrate 回灌真值)時同步。
   syncTopBarButton(ui.showTopBar);
   watch(
     () => ui.showTopBar,
     on => syncTopBarButton(on),
   );
-  // 等 ST 的 getContext 就绪后再 hydrate 设置(加载顺序不确定时轮询)
+  // 等 ST 的 getContext 就緒後再 hydrate 設定(載入順序不確定時輪詢)
   hydrateWhenReady();
 });
 
@@ -96,24 +97,25 @@ async function hydrateWhenReady(attempt = 0) {
   if ((window as unknown as { SillyTavern?: { getContext?: unknown } }).SillyTavern?.getContext) {
     try {
       await hydrateSettings();
-      // 全局库必须在 bindCharTagSync 之前初始化:首次重算就要把全局条目合进派生库
+      // 全域性庫必須在 bindCharTagSync 之前初始化:首次重算就要把全域性條目合進派生庫
       initGlobalCharTags();
       bindCharTagSync();
+      bindWorldSettingSync();
       ensureImageTagRegexRegistered();
+      bindLegacyImageTagMigration();
       bindAutoTagging();
       bindFloorHydration();
       bindTagActionButtons();
-      // 公开接口必须排在 hydrateSettings 之后:设置回灌前 getBackendStatus() 读的是
-      // 默认值,会把配好的用户报成「未配置」。排在 bindCharTagSync 之后则是为了让
-      // ready 事件里的 revision 已经对应真实角色库。
+      // 公開介面必須排在 hydrateSettings 之後:設定回灌前 getBackendStatus() 讀的是
+      // 預設值,會把配好的使用者報成「未配置」。排在 bindCharTagSync 之後則是為了讓
+      // ready 事件裡的 revision 已經對應真實角色庫。
       registerPublicInterface();
-      void checkForUpdate();
-      console.log(`[柏宝绘] 已加载 v${__BBI_VERSION__},设置已同步`);
+      console.log(`[虎哩繪] 已載入 v${__BBI_VERSION__},設定已同步`);
     } catch (e) {
-      console.error('[柏宝绘] 设置载入失败', e);
+      console.error('[虎哩繪] 設定載入失敗', e);
     }
     return;
   }
-  if (attempt > 40) return; // 最多约 20s
+  if (attempt > 40) return; // 最多約 20s
   setTimeout(() => hydrateWhenReady(attempt + 1), 500);
 }

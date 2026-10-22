@@ -10,31 +10,31 @@ import {
 import { getTagGenChannel } from '@/state/settings';
 
 /**
- * 角色固定外貌库的「锚定」侧。
+ * 角色固定外貌庫的「錨定」側。
  *
- * 生成 tag 前把库文本(全部条目)拼进请求:AI 看得到每个角色当前的字段值,才能判断
- * 需不需要改;画面 tag 里它照抄库中字段值,不使用占位符。
+ * 生成 tag 前把庫文本(全部條目)拼進請求:AI 看得到每個角色當前的欄位值,才能判斷
+ * 需不需要改;畫面 tag 裡它照抄庫中欄位值,不使用佔位符。
  *
- * 为什么不用 @角色名 占位符(v0.1.2 起撤回):原设计让 AI 只写 @小雪、由插件替换成
- * 完整字段串,本意是杜绝复述漂移。实测有三个结构性问题:
- * - 同一角色被引用多次时逐次展开,一张图里出现三份完整外貌 + 三个 1boy,
- *   模型据此画出多个重叠躯干(正向权重乘三,负面词压不住)。
- * - 规范里「40 个 tag 以内」的预算无法执行:AI 数 @小雪 是 1 个,实际展开成 6 个。
- * - 库脏数据被无条件放大:动作/场景词误入 outfit 字段时,每次展开都带上它。
- * 库文本本就在同一上下文里、字段值明明白白列着,照抄可见文本比凭记忆复述可靠,
- * 原设计高估了漂移风险。故改回「库只作参考,AI 自己写全」。
+ * 為什麼不用 @角色名 佔位符(v0.1.2 起撤回):原設計讓 AI 只寫 @小雪、由外掛替換成
+ * 完整欄位串,本意是杜絕複述漂移。實測有三個結構性問題:
+ * - 同一角色被引用多次時逐次展開,一張圖裡出現三份完整外貌 + 三個 1boy,
+ *   模型據此畫出多個重疊軀幹(正向權重乘三,負面詞壓不住)。
+ * - 規範裡「40 個 tag 以內」的預算無法執行:AI 數 @小雪 是 1 個,實際展開成 6 個。
+ * - 庫髒資料被無條件放大:動作/場景詞誤入 outfit 欄位時,每次展開都帶上它。
+ * 庫文本本就在同一上下文裡、欄位值明明白白列著,照抄可見文本比憑記憶複述可靠,
+ * 原設計高估了漂移風險。故改回「庫只作參考,AI 自己寫全」。
  *
- * applyCharRefs 系函数保留:模型偶发写出 @名字 时仍会被替换掉,不至于把字面量
- * 送进生图。即从主路径降级为兜底。
+ * applyCharRefs 系函式保留:模型偶發寫出 @名字 時仍會被替換掉,不至於把字面量
+ * 送進生圖。即從主路徑降級為兜底。
  *
- * 建档由主请求在同一次输出里完成(changes 的 field="new"):柏宝书的中文外貌本来就
- * 随角色参考块发给了主请求,它还额外有世界书、角色卡与目标正文佐证,比独立的转换
- * 请求判断得更准。建档与用档同属一次推理,后续 tag 才能围绕刚确立的外貌协调。
+ * 建檔由主請求在同一次輸出裡完成(changes 的 field="new"):Horae的中文外貌本來就
+ * 隨角色參考塊發給了主請求,它還額外有世界書、角色卡與目標正文佐證,比獨立的轉換
+ * 請求判斷得更準。建檔與用檔同屬一次推理,後續 tag 才能圍繞剛確立的外貌協調。
  *
- * 主流程顺序:先落 changes(本楼发生的变化当楼生效) → 再兜底替换残留的 @占位符。
+ * 主流程順序:先落 changes(本樓發生的變化當樓生效) → 再兜底替換殘留的 @佔位符。
  */
 
-/** 把库条目渲染成给 AI 看的一行(字段式明细 + 占位符提示);锁定条目带 [locked] 标记。 */
+/** 把庫條目渲染成給 AI 看的一行(欄位式明細 + 佔位符提示);鎖定條目帶 [locked] 標記。 */
 export function formatEntryForPrompt(entry: CharTagEntry, locked = false): string {
   const parts: string[] = [];
   for (const f of CHAR_TAG_FIELDS) {
@@ -43,54 +43,67 @@ export function formatEntryForPrompt(entry: CharTagEntry, locked = false): strin
   }
   if (!parts.length && entry.raw.trim()) parts.push(`tag=${entry.raw.trim()}`);
   if (entry.nl.trim()) parts.push(`nl=${entry.nl.trim()}`);
-  return `- ${entry.name}${locked ? ' [locked]' : ''}: ${parts.join(', ') || '(未记录字段)'}`;
+  return `- ${entry.name}${locked ? ' [locked]' : ''}: ${parts.join(', ') || '(未記錄欄位)'}`;
 }
 
 /**
- * 库文本:发给 AI 的角色库部分。AI 依据它决定 changes,并在 tag/nl 中照抄对应字段;
- * 名单与字段值都由插件生成,AI 只读。锁定名(全局库)带 [locked] 标记并在头部声明不可变。
+ * 庫文本:發給 AI 的角色庫部分。AI 依據它決定 changes,並在 tag/nl 中照抄對應欄位;
+ * 名單與欄位值都由外掛生成,AI 只讀。鎖定名(全域性庫)帶 [locked] 標記並在頭部宣告不可變。
  */
-export function buildLibraryText(entries: CharTagEntry[], lockedNames?: ReadonlySet<string>): string {
+export function buildLibraryText(
+  entries: CharTagEntry[],
+  lockedNames?: ReadonlySet<string>,
+  presentNames?: ReadonlySet<string>,
+): string {
   if (!entries.length) return '';
-  const lines = entries.map(entry => formatEntryForPrompt(entry, lockedNames?.has(entry.name) ?? false));
+  // 給了在場名單時:只有在場角色帶完整欄位,其餘只報名字(讓模型知道已建檔、別重建)
+  const shown = presentNames ? entries.filter(entry => presentNames.has(entry.name)) : entries;
+  const absent = presentNames ? entries.filter(entry => !presentNames.has(entry.name)) : [];
+  const lines = shown.map(entry => formatEntryForPrompt(entry, lockedNames?.has(entry.name) ?? false));
+  if (absent.length) {
+    lines.push(`- 已建檔(本次未判定在場;若入畫照常使用這個名字,不要重新建檔):${absent.map(entry => entry.name).join('、')}`);
+  }
   const lockedNote = lockedNames?.size
     ? '; entries marked [locked] are global and immutable: never report changes for them, always copy their fields as-is'
     : '';
-  return `【角色固定外貌库】[system-maintained; copy fields verbatim into character prompts${lockedNote}]\n${lines.join('\n')}`;
+  return `【角色固定外貌庫】[system-maintained; copy fields verbatim into character prompts${lockedNote}]\n${lines.join('\n')}`;
 }
 
-/** 旧接口兼容:runner 之外仍有调用方依赖锚定文本形态。 */
+/** 舊介面相容:runner 之外仍有呼叫方依賴錨定文本形態。 */
 export function buildAnchorText(entries: CharTagEntry[], lockedNames?: ReadonlySet<string>): string {
   return buildLibraryText(entries, lockedNames);
 }
 
-/* ============ 中文外貌 → 结构化字段 的批量转换 ============ */
+/* ============ 中文外貌 → 結構化欄位 的批次轉換 ============ */
 
-const CONVERT_SPEC = `你是外貌 tag 转换器。把给出的角色中文外貌描述拆成固定字段的 danbooru 短 tag:英文小写、逗号分隔、多词用空格连接(不要用下划线)。
+const CONVERT_SPEC = `你是外貌 tag 轉換器。把給出的角色中文外貌描述拆成固定欄位的 danbooru 短 tag:英文小寫、逗號分隔、多詞用空格連線(不要用下劃線)。
 
-字段与示例:
-- sex(性别):1girl / 1boy / androgynous 等
-- hair(头发):long black hair / short silver hair 等
+欄位與示例:
+- sex(性別):1girl / 1boy / androgynous 等
+- hair(頭髮):long black hair / short silver hair 等
 - eyes(眼睛):red eyes / blue eyes 等
-- skin(肤色):tan / dark skin 等(没提就留空;白皙是默认肤色,不需要记录)
-- body(体型):petite / tall / slim / small breasts 等
-- extra(标志特征):heterochromia / scar on cheek / pointy ears 等(没提就留空)
+- skin(膚色):tan / dark skin 等(沒提就留空;白皙是預設膚色,不需要記錄)
+- body(體型):petite / tall / slim / small breasts 等
+- extra(標誌特徵):heterochromia / scar on cheek / pointy ears 等(沒提就留空)
 
-规则:
-1. 只提取固定基础特征;服装、饰品、状态、表情、动作、场景一律不写。
-2. hair 与 eyes 是二次元角色身份锚点：描述里只要出现发色、发型/长度或瞳色线索就必须写入对应字段，不得遗漏或塞进 extra；hair 尽量同时保留颜色和长度/发型，eyes 保留颜色。
-3. 描述里没提的细节不要脑补,对应字段留空字符串。
-4. 只返回一个 JSON 对象:{"角色名":{"sex":"...","hair":"...","eyes":"...","skin":"...","body":"...","extra":"..."}},键与输入的角色名完全一致;不要 Markdown 代码块、不要解释。`;
+規則:
+1. 只收畫得出來、而且永久不變的外貌:髮、眼、膚色、體型、天生或永久的標誌(疤、痣、尖耳、刺青)。
+   這些不屬於固定外貌,留給每張圖按當下劇情寫:服裝、飾品、表情、情緒、動作、場景,以及暫時狀態(疲倦、黑眼圈、受傷、臉紅、流汗、淚痕)。
+   這些畫不出來,直接略過:身高體重等數字、年齡數字、性格與氣質(charismatic、idol aesthetic、cool 之類)。
+   同一特徵只寫一個最貼切的 tag(例如 narrow eyes 與 sharp eyes 擇一)。
+2. hair 與 eyes 是二次元角色身份錨點：描述裡只要出現髮色、髮型/長度或瞳色線索就必須寫入對應欄位，不得遺漏或塞進 extra；hair 儘量同時保留顏色和長度/髮型，eyes 保留顏色。
+3. 描述裡沒提的細節不要腦補,對應欄位留空字串。
+4. 只返回一個 JSON 物件:{"角色名":{"sex":"...","hair":"...","eyes":"...","skin":"...","body":"...","extra":"..."}},鍵與輸入的角色名完全一致;不要 Markdown 程式碼塊、不要解釋。`;
 
-/** 字段值清洗:换行压成空格、剥 bbi_image 系子标签字面量(防止污染注入格式)。 */
+/** 欄位值清洗:換行壓成空格、剝 hooli_image 系子標籤字面量(防止汙染注入格式)。 */
 function sanitizeTagValue(value: unknown): string {
   const text = typeof value === 'string' ? value.trim().replace(/[\r\n]+/g, ' ') : '';
   if (!text) return '';
-  if (/<\/?(?:bbi_image|tag|nl|size)\b/i.test(text)) return '';
+  if (/<\/?(?:hooli_image|tag|nl|size)\b/i.test(text)) return '';
   return text;
 }
 
-/** 从模型回复中解析 {角色名: {字段: tag}}(宽容:带代码块/前后杂质也能解)。 */
+/** 從模型回覆中解析 {角色名: {欄位: tag}}(寬容:帶程式碼塊/前後雜質也能解)。 */
 export function parseConvertedTags(raw: string): Record<string, Partial<Record<CharTagField, string>>> {
   const cleaned = raw.replace(/<think(?:ing)?\b[\s\S]*?<\/think(?:ing)?>/gi, '');
   const candidates: string[] = [cleaned.trim()];
@@ -118,7 +131,7 @@ export function parseConvertedTags(raw: string): Record<string, Partial<Record<C
         return out;
       }
     } catch {
-      // 试下一个候选
+      // 試下一個候選
     }
   }
   return {};
@@ -131,12 +144,12 @@ export interface ConvertedChar {
 }
 
 /**
- * 批量把中文外貌转成结构化字段。一次请求转换所有待办角色。
- * 渠道与自动 tag 主流程同口径:指派渠道优先,未指派跟随主 API。
- * 返回成功转换的条目;整体失败(请求异常)向上抛,调用方 catch 后降级。
+ * 批次把中文外貌轉成結構化欄位。一次請求轉換所有待辦角色。
+ * 渠道與自動 tag 主流程同口徑:指派渠道優先,未指派跟隨主 API。
+ * 返回成功轉換的條目;整體失敗(請求異常)向上拋,呼叫方 catch 後降級。
  *
- * 只服务角色管理页的「按柏宝书最新外貌生成」按钮 —— 那是用户主动点的一次性动作。
- * 自动 tag 主流程不再调它:建档由主请求在同一次输出里完成(见文件头)。
+ * 只服務角色管理頁的「按Horae最新外貌生成」按鈕 —— 那是使用者主動點的一次性動作。
+ * 自動 tag 主流程不再調它:建檔由主請求在同一次輸出裡完成(見檔案頭)。
  */
 export async function generateCharTags(
   chars: Array<{ name: string; desc: string }>,
@@ -152,8 +165,8 @@ export async function generateCharTags(
   ];
   const channel = getTagGenChannel();
   const raw = channel
-    ? await requestCompletion(channel, messages, { signal, source: '角色外貌转换' })
-    : await requestViaMainApi(messages, { signal, source: '角色外貌转换' });
+    ? await requestCompletion(channel, messages, { signal, source: '角色外貌轉換' })
+    : await requestViaMainApi(messages, { signal, source: '角色外貌轉換' });
   const parsed = parseConvertedTags(raw);
   const out: ConvertedChar[] = [];
   for (const c of chars) {
@@ -166,11 +179,11 @@ export async function generateCharTags(
 /* ============ 主流程入口 ============ */
 
 /**
- * 生成前的库准备:把当前库渲染成请求里的库文本。
+ * 生成前的庫準備:把當前庫渲染成請求裡的庫文本。
  *
- * 纯函数、无请求 —— 建档已交给主请求(见文件头)。保留这层是因为调用方还需要
- * 「库文本 + 库条目」这对组合,且 @占位符替换要以同一份 entries 为基线。
- * 空库返回 text=null,调用方据此不启用 @占位符。
+ * 純函式、無請求 —— 建檔已交給主請求(見檔案頭)。保留這層是因為呼叫方還需要
+ * 「庫文本 + 庫條目」這對組合,且 @佔位符替換要以同一份 entries 為基線。
+ * 空庫返回 text=null,呼叫方據此不啟用 @佔位符。
  */
 export interface ResolvedCharAnchors {
   text: string | null;
@@ -180,18 +193,19 @@ export interface ResolvedCharAnchors {
 export function resolveCharAnchors(
   entriesBefore: CharTagEntry[],
   lockedNames?: ReadonlySet<string>,
+  presentNames?: ReadonlySet<string>,
 ): ResolvedCharAnchors {
-  const text = buildLibraryText(entriesBefore, lockedNames);
+  const text = buildLibraryText(entriesBefore, lockedNames, presentNames);
   return { text: text || null, entries: entriesBefore };
 }
 
-/* ============ @占位符 替换 ============ */
+/* ============ @佔位符 替換 ============ */
 
-/** @名 占位符;名字允许中文/字母/数字/点/下划线/间隔号(常见角色名形态)。 */
+/** @名 佔位符;名字允許中文/字母/數字/點/下劃線/間隔號(常見角色名形態)。 */
 const REF_PATTERN = /@([\p{L}\p{N}_.·]+)/gu;
 
 function joinEntryTag(entry: CharTagEntry): string {
-  // 与 state/charTags.buildEntryTag 同构;重复这一小段以避开循环依赖
+  // 與 state/charTags.buildEntryTag 同構;重複這一小段以避開迴圈依賴
   if (entry.raw.trim() && CHAR_TAG_FIELDS.every(f => !(entry.fields[f] ?? '').trim())) {
     return entry.raw.trim();
   }
@@ -200,7 +214,7 @@ function joinEntryTag(entry: CharTagEntry): string {
     .join(', ');
 }
 
-/** 压缩替换后残留的分隔符垃圾:连续逗号、行首行尾逗号。 */
+/** 壓縮替換後殘留的分隔符垃圾:連續逗號、行首行尾逗號。 */
 function tidySeparators(text: string): string {
   let out = text;
   for (let i = 0; i < 4; i += 1) {
@@ -212,8 +226,8 @@ function tidySeparators(text: string): string {
 }
 
 /**
- * AI 输出文本里的 @占位符 处理:库里有的 → 替换成最新 tag 串(nl 模式优先条目的自然语言句);
- * 没有的 → 剥掉(连带尾随分隔符)。返回处理后的文本与未知名字列表(调用方可用于告警)。
+ * AI 輸出文本裡的 @佔位符 處理:庫裡有的 → 替換成最新 tag 串(nl 模式優先條目的自然語言句);
+ * 沒有的 → 剝掉(連帶尾隨分隔符)。返回處理後的文本與未知名字列表(呼叫方可用於告警)。
  */
 export function applyCharRefs(
   text: string,
@@ -244,12 +258,12 @@ export interface PositionedCharOp {
 }
 
 /**
- * 按图片位置解析 @占位符。
+ * 按圖片位置解析 @佔位符。
  *
- * 建档(new)全楼生效:新角色的固定外貌是本楼**全程成立的事实**,不是「从某处开始」的
- * 变化——同一楼里位置更靠前的图片也可能有这个角色在场。若按位置门控,那些图片的
- * @占位符会查不到条目而被整个剥掉,角色变成没有外貌。
- * 永久变化(set)才按位置门控:染发之前的图片必须用旧档案。
+ * 建檔(new)全樓生效:新角色的固定外貌是本樓**全程成立的事實**,不是「從某處開始」的
+ * 變化——同一樓裡位置更靠前的圖片也可能有這個角色在場。若按位置門控,那些圖片的
+ * @佔位符會查不到條目而被整個剝掉,角色變成沒有外貌。
+ * 永久變化(set)才按位置門控:染髮之前的圖片必須用舊檔案。
  */
 export function applyPositionedCharRefs(
   text: string,

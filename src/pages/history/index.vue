@@ -14,33 +14,33 @@ import {
 import { copyText } from '@/st/clipboard';
 
 /**
- * 请求历史页。
+ * 請求歷史頁。
  *
- * 副 API 推理与生图各自的调用收口点(api/client.ts、floor/Card.vue)把过程写进
- * state/history.ts,这里只负责展示。**纯内存,刷新即清空**——定位是调试辅助,
- * 不是资产,所以既不落盘也不提供导出。
+ * 副 API 推理與生圖各自的呼叫收口點(api/client.ts、floor/Card.vue)把過程寫進
+ * state/history.ts,這裡只負責展示。**純記憶體,重新整理即清空**——定位是除錯輔助,
+ * 不是資產,所以既不落盤也不提供匯出。
  *
- * 结构:一条请求 = 一个折叠区;展开后里面是「一段提示词 = 一行」的只读列表
- * (与设置页「自定义提示词」同款观感),点行进弹窗看全文。
+ * 結構:一條請求 = 一個摺疊區;展開後裡面是「一段提示詞 = 一行」的只讀列表
+ * (與設定頁「自定義提示詞」同款觀感),點行進彈窗看全文。
  */
 
 type Filter = 'all' | 'llm' | 'image';
 
-/** 展开后列表里的一段:副 API 是各条 message + 返回,生图是各段提示词。 */
+/** 展開後列表裡的一段:副 API 是各條 message + 返回,生圖是各段提示詞。 */
 interface Segment {
-  /** 行首标签:system / user / assistant / 返回 / 正向提示词 … */
+  /** 行首標籤:system / user / assistant / 返回 / 正向提示詞 … */
   label: string;
   text: string;
 }
 
 const filter = ref<Filter>('all');
-/** 弹窗里正在看的那一段(null = 关闭)。 */
+/** 彈窗裡正在看的那一段(null = 關閉)。 */
 const viewing = ref<{ title: string; segment: Segment } | null>(null);
 
 const FILTERS: { value: Filter; label: string }[] = [
   { value: 'all', label: '全部' },
   { value: 'llm', label: '副 API' },
-  { value: 'image', label: '生图' },
+  { value: 'image', label: '生圖' },
 ];
 
 const shown = computed(() =>
@@ -52,19 +52,19 @@ function time(ts: number): string {
 }
 
 function duration(ms: number | null): string {
-  if (ms === null) return '进行中';
+  if (ms === null) return '進行中';
   return ms < 1000 ? `${ms}ms` : `${(ms / 1000).toFixed(1)}s`;
 }
 
 function statusLabel(record: HistoryRecord): string {
-  if (record.status === 'running') return '进行中';
+  if (record.status === 'running') return '進行中';
   if (record.status === 'ok') return '成功';
   if (record.status === 'aborted') return '已取消';
-  return '失败';
+  return '失敗';
 }
 
 function title(record: HistoryRecord): string {
-  return record.kind === 'llm' ? record.source : `第 ${record.floor} 楼 · 第 ${record.seq + 1} 张`;
+  return record.kind === 'llm' ? record.source : `第 ${record.floor} 樓 · 第 ${record.seq + 1} 張`;
 }
 
 function subtitle(record: HistoryRecord): string {
@@ -75,8 +75,8 @@ function subtitle(record: HistoryRecord): string {
 }
 
 /**
- * token 数展示。估算值加 ≈ 前缀:估算走的是 ST 主界面当前模型的分词器,
- * 与副 API 渠道模型未必同源,不能与上游返回的真实 usage 混显。
+ * token 數展示。估算值加 ≈ 字首:估算走的是 ST 主介面當前模型的分詞器,
+ * 與副 API 渠道模型未必同源,不能與上游返回的真實 usage 混顯。
  */
 function tokenLabel(record: LlmRecord): string {
   if (record.promptTokens === null) return '';
@@ -85,76 +85,76 @@ function tokenLabel(record: LlmRecord): string {
 
 function tokenTitle(record: LlmRecord): string {
   return record.tokensEstimated
-    ? '本地估算：用的是 ST 主界面当前模型的分词器，与本渠道模型未必一致，仅供参考'
-    : '上游返回的真实用量（usage）';
+    ? '本地估算：用的是 ST 主介面當前模型的分詞器，與本渠道模型未必一致，僅供參考'
+    : '上游返回的真實用量（usage）';
 }
 
-/** 把一条记录摊成「按顺序的若干段」——展开区就是照这个顺序渲染的。 */
+/** 把一條記錄攤成「按順序的若干段」——展開區就是照這個順序渲染的。 */
 function segments(record: HistoryRecord): Segment[] {
   if (record.kind === 'llm') {
     const out: Segment[] = record.messages.map(m => ({ label: m.role, text: m.content }));
     if (record.response) out.push({ label: '返回', text: record.response });
     return out;
   }
-  const out: Segment[] = [{ label: '正向提示词', text: record.prompt }];
-  if (record.nl) out.push({ label: '自然语言', text: record.nl });
+  const out: Segment[] = [{ label: '正向提示詞', text: record.prompt }];
+  if (record.nl) out.push({ label: '自然語言', text: record.nl });
   for (const character of record.characters ?? []) {
     out.push({
       label: `\u89d2\u8272: ${character.name}`,
       text: [character.tag, character.nl].filter(Boolean).join('\n\n'),
     });
   }
-  if (record.negative) out.push({ label: '负面', text: record.negative });
+  if (record.negative) out.push({ label: '負面', text: record.negative });
   return out;
 }
 
-/** 行内预览:压掉换行,长的靠 CSS 省略号截断。 */
+/** 行內預覽:壓掉換行,長的靠 CSS 省略號截斷。 */
 function inline(text: string): string {
   return text.replace(/\s+/g, ' ').trim();
 }
 
-/** 展开区顶部那排事实标签。 */
+/** 展開區頂部那排事實標籤。 */
 function facts(record: HistoryRecord): string[] {
   const out = [subtitle(record), duration(record.durationMs), new Date(record.startedAt).toLocaleString()];
   if (record.kind === 'llm') {
     if (record.stream) out.push('流式');
-    // 标题行那个数字是提示词 token(标题行地方紧,不带单位);这里补全口径。
-    if (record.promptTokens !== null) out.push(`提示词 ${tokenLabel(record)} token`);
+    // 標題行那個數字是提示詞 token(標題行地方緊,不帶單位);這裡補全口徑。
+    if (record.promptTokens !== null) out.push(`提示詞 ${tokenLabel(record)} token`);
     if (record.completionTokens !== null) {
-      out.push(`输出 ${record.tokensEstimated ? '≈' : ''}${record.completionTokens.toLocaleString()} token`);
+      out.push(`輸出 ${record.tokensEstimated ? '≈' : ''}${record.completionTokens.toLocaleString()} token`);
     }
   } else {
-    out.push(`种子 ${record.seed}`, record.size);
+    out.push(`種子 ${record.seed}`, record.size);
   }
   return out.filter(Boolean);
 }
 
-/** 整条记录拷成文本,方便贴去别处排查。 */
+/** 整條記錄拷成文本,方便貼去別處排查。 */
 function copyAll(record: HistoryRecord): void {
   const head = [
     `【${title(record)}】${subtitle(record)}`,
-    `状态：${statusLabel(record)}  耗时：${duration(record.durationMs)}`,
+    `狀態：${statusLabel(record)}  耗時：${duration(record.durationMs)}`,
     record.kind === 'llm' && record.promptTokens !== null
-      ? `提示词 token：${tokenLabel(record)}`
+      ? `提示詞 token：${tokenLabel(record)}`
       : '',
-    record.error ? `错误：${record.error}` : '',
+    record.error ? `錯誤：${record.error}` : '',
   ].filter(Boolean);
   const body = segments(record).map(s => `--- ${s.label} ---\n${s.text}`);
-  void copyText([...head, '', ...body].join('\n'), '记录已复制');
+  void copyText([...head, '', ...body].join('\n'), '記錄已複製');
 }
 </script>
 
 <template>
   <section class="bbi-page">
     <div class="bbi-page-head">
-      <h2 class="bbi-title bbi-title-sub">请求历史</h2>
-      <span class="bbi-count" title="本次会话已记录的请求数">{{ records.length }}</span>
+      <h2 class="bbi-title bbi-title-sub">請求歷史</h2>
+      <span class="bbi-count" title="本次會話已記錄的請求數">{{ records.length }}</span>
     </div>
     <hr class="bbi-rule" />
 
     <div class="bbi-hist-bar">
       <div class="bbi-segmented-wrap">
-        <div class="bbi-segmented" role="tablist" aria-label="记录类型">
+        <div class="bbi-segmented" role="tablist" aria-label="記錄型別">
           <button
             v-for="f in FILTERS"
             :key="f.value"
@@ -179,7 +179,7 @@ function copyAll(record: HistoryRecord): void {
       </button>
     </div>
 
-    <!-- 一条请求 = 一个折叠区 -->
+    <!-- 一條請求 = 一個摺疊區 -->
     <div v-if="shown.length" class="bbi-sections">
       <Collapsible v-for="record in shown" :key="record.id" :open="false">
         <template #header>
@@ -209,11 +209,11 @@ function copyAll(record: HistoryRecord): void {
           v-if="record.kind === 'llm' && record.tokensEstimated && record.promptTokens !== null"
           class="bbi-field-hint"
         >
-          带 ≈ 的 token 数是本地估算：流式与「跟随主 API」拿不到上游用量，
-          这里用 ST 主界面当前模型的分词器估的，与本渠道模型未必一致。
+          帶 ≈ 的 token 數是本地估算：流式與「跟隨主 API」拿不到上游用量，
+          這裡用 ST 主介面當前模型的分詞器估的，與本渠道模型未必一致。
         </p>
 
-        <!-- 按顺序的提示词列表:与设置页「自定义提示词」同款行 -->
+        <!-- 按順序的提示詞列表:與設定頁「自定義提示詞」同款行 -->
         <ul class="bbi-prompt-list">
           <li v-for="(seg, i) in segments(record)" :key="i">
             <button
@@ -225,7 +225,7 @@ function copyAll(record: HistoryRecord): void {
               <span class="bbi-prompt-preview">{{ inline(seg.text) }}</span>
               <span
                 class="bbi-prompt-len"
-                title="本段 token 粗估（本地按字符估算，仅供段间比较，与标题行的真实用量口径不同）"
+                title="本段 token 粗估（本地按字元估算，僅供段間比較，與標題行的真實用量口徑不同）"
               >≈{{ roughTokens(seg.text).toLocaleString() }}</span>
               <Icon name="eye" class="bbi-prompt-edit" />
             </button>
@@ -234,22 +234,22 @@ function copyAll(record: HistoryRecord): void {
 
         <div class="bbi-hist-foot">
           <button class="bbi-btn bbi-btn-sm" type="button" @click="copyAll(record)">
-            <Icon name="copy" /> 复制整条
+            <Icon name="copy" /> 複製整條
           </button>
         </div>
       </Collapsible>
     </div>
-    <p v-else-if="records.length" class="bbi-field-hint">当前筛选下没有记录。</p>
+    <p v-else-if="records.length" class="bbi-field-hint">當前篩選下沒有記錄。</p>
     <p v-else class="bbi-field-hint">
-      本次会话还没有请求记录。触发一次自动 tag 或生成一张图，这里就会出现条目（刷新页面会清空）。
+      本次會話還沒有請求記錄。觸發一次自動 tag 或生成一張圖，這裡就會出現條目（重新整理頁面會清空）。
     </p>
 
-    <!-- ===== 单段全文弹窗 ===== -->
+    <!-- ===== 單段全文彈窗 ===== -->
     <ModalMask :open="!!viewing" @close="viewing = null">
-      <div v-if="viewing" class="bbi-modal bbi-modal-wide" role="dialog" aria-modal="true" aria-label="提示词全文">
+      <div v-if="viewing" class="bbi-modal bbi-modal-wide" role="dialog" aria-modal="true" aria-label="提示詞全文">
         <header class="bbi-modal-head">
           <span class="bbi-modal-title">{{ viewing.title }}</span>
-          <button class="bbi-icon-mini" type="button" title="关闭" @click="viewing = null">
+          <button class="bbi-icon-mini" type="button" title="關閉" @click="viewing = null">
             <Icon name="close" />
           </button>
         </header>
@@ -258,8 +258,8 @@ function copyAll(record: HistoryRecord): void {
 
         <footer class="bbi-modal-foot">
           <span class="bbi-modal-foot-spacer"></span>
-          <button class="bbi-btn" type="button" @click="copyText(viewing!.segment.text, '已复制')">
-            <Icon name="copy" /> 复制
+          <button class="bbi-btn" type="button" @click="copyText(viewing!.segment.text, '已複製')">
+            <Icon name="copy" /> 複製
           </button>
           <button class="bbi-btn bbi-btn-primary" type="button" @click="viewing = null">完成</button>
         </footer>
@@ -269,7 +269,7 @@ function copyAll(record: HistoryRecord): void {
 </template>
 
 <style scoped>
-/* —— 计数药丸:与角色页/设置页同款观感 —— */
+/* —— 計數藥丸:與角色頁/設定頁同款觀感 —— */
 .bbi-count {
   border: 0;
   padding: 7px 12px;
@@ -290,9 +290,9 @@ function copyAll(record: HistoryRecord): void {
   margin: 12px 0;
 }
 
-/* —— 折叠区标题行:名称 + 渠道 + token + 时间 + 状态 ——
-   收缩优先级(挤不下时谁先让路):渠道/模型 → 标题 → 时间;
-   token 与状态药丸**永不收缩**——它们是这一行最该被读到的两个值。 */
+/* —— 摺疊區標題行:名稱 + 渠道 + token + 時間 + 狀態 ——
+   收縮優先順序(擠不下時誰先讓路):渠道/模型 → 標題 → 時間;
+   token 與狀態藥丸**永不收縮**——它們是這一行最該被讀到的兩個值。 */
 .bbi-hist-head {
   display: flex;
   align-items: center;
@@ -300,9 +300,9 @@ function copyAll(record: HistoryRecord): void {
   flex: 1 1 auto;
   min-width: 0;
 }
-/* 标题可收缩(min-width:0 是省略号生效的前提)。
-   原先是 flex:0 0 auto 不可收缩,长标题会把后面的 token/状态整个挤出容器——
-   窄屏「看不到 token」正是这么来的,不是被 media query 藏了。 */
+/* 標題可收縮(min-width:0 是省略號生效的前提)。
+   原先是 flex:0 0 auto 不可收縮,長標題會把後面的 token/狀態整個擠出容器——
+   窄屏「看不到 token」正是這麼來的,不是被 media query 藏了。 */
 .bbi-hist-name {
   flex: 0 1 auto;
   min-width: 0;
@@ -312,7 +312,7 @@ function copyAll(record: HistoryRecord): void {
   overflow: hidden;
   text-overflow: ellipsis;
 }
-/* 渠道/模型:最先让路的那个 */
+/* 渠道/模型:最先讓路的那個 */
 .bbi-hist-sub {
   flex: 1 1 auto;
   min-width: 0;
@@ -330,7 +330,7 @@ function copyAll(record: HistoryRecord): void {
   font-weight: 600;
   color: var(--bbi-ink);
 }
-/* 估算值弱化:与真实用量视觉上就分开,免得被当成权威数字 */
+/* 估算值弱化:與真實用量視覺上就分開,免得被當成權威數字 */
 .bbi-hist-tok.is-est {
   color: var(--bbi-ink-muted);
   font-weight: 400;
@@ -343,8 +343,8 @@ function copyAll(record: HistoryRecord): void {
   white-space: nowrap;
 }
 
-/* 状态药丸:复用全局 .bbi-prompt-state 的几何,只改配色。
-   成功走它自带的 .is-custom 同款强调色,失败红、取消橙(取消不是故障)。 */
+/* 狀態藥丸:複用全域性 .bbi-prompt-state 的幾何,只改配色。
+   成功走它自帶的 .is-custom 同款強調色,失敗紅、取消橙(取消不是故障)。 */
 .bbi-prompt-state.is-ok {
   color: var(--bbi-accent);
   background: var(--bbi-accent-soft);
@@ -361,7 +361,7 @@ function copyAll(record: HistoryRecord): void {
   border-color: transparent;
 }
 
-/* —— 展开区:事实标签条 —— */
+/* —— 展開區:事實標籤條 —— */
 .bbi-hist-facts {
   display: flex;
   flex-wrap: wrap;
@@ -387,7 +387,7 @@ function copyAll(record: HistoryRecord): void {
   overflow-wrap: anywhere;
 }
 
-/* —— 提示词分段列表:几何照搬设置页「自定义提示词」 —— */
+/* —— 提示詞分段列表:幾何照搬設定頁「自定義提示詞」 —— */
 .bbi-prompt-list {
   list-style: none;
   margin: 0;
@@ -417,12 +417,12 @@ function copyAll(record: HistoryRecord): void {
   border-color: var(--bbi-accent);
   background: var(--bbi-surface);
 }
-/* 角色标签 = 这段提示词的身份,与设置页 .bbi-prompt-name 同口径:走 --bbi-ink。
-   定宽让各行预览的左边缘对齐成一条线。
-   【宽度按最长标签定】ASSISTANT 是 9 个大写等宽字符 + letter-spacing,原来拍脑袋
-   给的 72px 装不下,被省略成「ASSISTAN…」。用 ch 单位跟着字号走,换字号不会再截断。
-   【勿改成 --bbi-accent】它在粉彩主题下是 #ffafcc(浅粉,本就是给背景用的,
-   配套 --bbi-accent-ink 白字),当文字色压在浅色面上几乎看不见。 */
+/* 角色標籤 = 這段提示詞的身份,與設定頁 .bbi-prompt-name 同口徑:走 --bbi-ink。
+   定寬讓各行預覽的左邊緣對齊成一條線。
+   【寬度按最長標籤定】ASSISTANT 是 9 個大寫等寬字元 + letter-spacing,原來拍腦袋
+   給的 72px 裝不下,被省略成「ASSISTAN…」。用 ch 單位跟著字號走,換字號不會再截斷。
+   【勿改成 --bbi-accent】它在粉彩主題下是 #ffafcc(淺粉,本就是給背景用的,
+   配套 --bbi-accent-ink 白字),當文字色壓在淺色面上幾乎看不見。 */
 .bbi-prompt-role {
   flex: 0 0 auto;
   width: 10.5ch;
@@ -444,10 +444,10 @@ function copyAll(record: HistoryRecord): void {
   overflow: hidden;
   text-overflow: ellipsis;
 }
-/* token 粗估:一眼看出哪段最占篇幅,是这个列表最该被读到的值。
-   定宽 + 右对齐 + tabular-nums:各行个位对齐成一列,不同位数(≈400 / ≈3,700)
-   才能直接比长短;不定宽的话数字随预览宽度浮动,比大小就得逐个读。
-   宽度含 ≈ 前缀 + 5 位数(万级),用 ch 跟着字号走。 */
+/* token 粗估:一眼看出哪段最佔篇幅,是這個列表最該被讀到的值。
+   定寬 + 右對齊 + tabular-nums:各行個位對齊成一列,不同位數(≈400 / ≈3,700)
+   才能直接比長短;不定寬的話數字隨預覽寬度浮動,比大小就得逐個讀。
+   寬度含 ≈ 字首 + 5 位數(萬級),用 ch 跟著字號走。 */
 .bbi-prompt-len {
   flex: 0 0 auto;
   width: 7ch;
@@ -473,7 +473,7 @@ function copyAll(record: HistoryRecord): void {
   margin-top: 12px;
 }
 
-/* —— 弹窗:更宽 + 长文本限高滚动 —— */
+/* —— 彈窗:更寬 + 長文本限高滾動 —— */
 .bbi-modal-wide {
   max-width: 680px;
 }
@@ -494,7 +494,7 @@ function copyAll(record: HistoryRecord): void {
   user-select: text;
 }
 
-/* —— 危险按钮 / 图标按钮 / 底部占位:scoped 过不了组件边界,各页各抄一份 —— */
+/* —— 危險按鈕 / 圖示按鈕 / 底部佔位:scoped 過不了元件邊界,各頁各抄一份 —— */
 .bbi-btn-danger {
   color: var(--bbi-danger);
   border-color: var(--bbi-line-strong);
@@ -528,8 +528,8 @@ function copyAll(record: HistoryRecord): void {
   flex: 1 1 auto;
 }
 
-/* —— 窄屏:标题行挤不下,让次要信息退场 ——
-   token 与状态**必须留下**:token 是这页的核心信息,比渠道名/时间重要得多。 */
+/* —— 窄屏:標題行擠不下,讓次要資訊退場 ——
+   token 與狀態**必須留下**:token 是這頁的核心資訊,比渠道名/時間重要得多。 */
 @media (max-width: 640px) {
   .bbi-hist-name {
     font-size: 13px;
@@ -538,10 +538,10 @@ function copyAll(record: HistoryRecord): void {
   .bbi-hist-time {
     display: none;
   }
-  /* 窄屏:预览让位给 token 估算。估算值是判断「哪段占篇幅」的唯一依据,预览只是
-     辅助辨认——两者只能留一个时留数字。预览撤走后靠 margin-left:auto 把它顶回右侧,
-     否则会贴着角色标签挤在左边,离眼睛按钮老远、看着也不像一列。
-     角色标签宽度不再压缩:压到 56px 会把 ASSISTANT 截断,而它正是要看的身份信息。 */
+  /* 窄屏:預覽讓位給 token 估算。估算值是判斷「哪段佔篇幅」的唯一依據,預覽只是
+     輔助辨認——兩者只能留一個時留數字。預覽撤走後靠 margin-left:auto 把它頂回右側,
+     否則會貼著角色標籤擠在左邊,離眼睛按鈕老遠、看著也不像一列。
+     角色標籤寬度不再壓縮:壓到 56px 會把 ASSISTANT 截斷,而它正是要看的身份資訊。 */
   .bbi-prompt-preview {
     display: none;
   }

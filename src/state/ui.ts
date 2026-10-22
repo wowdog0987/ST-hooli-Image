@@ -2,74 +2,77 @@ import { onSettingsReady, settings } from '@/state/settings';
 import { reactive, ref, watch } from 'vue';
 
 /**
- * 弹窗 Teleport 宿主:由 App.vue 挂在 .bbi-root 的直接子级(在 .bbi-body 滚动容器之外)。
- * 所有 .bbi-modal-mask 弹窗都 Teleport 到这里,避开 iOS Safari 的老问题——
- * 「可滚动祖先内的 position:fixed 后代」会相对滚动内容而非视口定位,设置页滚动后弹窗顶出屏幕。
- * 仍在 shadow root 内,scoped 样式与 --bbi-* 主题变量照常生效(故不能用 Teleport to="body")。
+ * 彈窗 Teleport 宿主:由 App.vue 掛在 .bbi-root 的直接子級(在 .bbi-body 滾動容器之外)。
+ * 所有 .bbi-modal-mask 彈窗都 Teleport 到這裡,避開 iOS Safari 的老問題——
+ * 「可滾動祖先內的 position:fixed 後代」會相對滾動內容而非視口定位,設定頁滾動後彈窗頂出螢幕。
+ * 仍在 shadow root 內,scoped 樣式與 --bbi-* 主題變數照常生效(故不能用 Teleport to="body")。
  */
 export const modalHost = ref<HTMLElement | null>(null);
 
-/** 导航位置:auto = PC 顶部、移动端底部 */
+/** 導航位置:auto = PC 頂部、移動端底部 */
 export type NavPosition = 'top' | 'bottom' | 'auto';
 
 /**
- * 主题。新增主题只需:
- *   1) theme.css 里加一套 .bbi-root[data-theme='xxx'] 变量;
- *   2) 这里给 ThemeName 加上 'xxx',并往 THEMES 注册表加一条。
- * 设置页与题首切换按钮都从 THEMES 自动读取,无需再改别处。
+ * 主題。新增主題只需:
+ *   1) theme.css 裡加一套 .bbi-root[data-theme='xxx'] 變數;
+ *   2) 這裡給 ThemeName 加上 'xxx',並往 THEMES 登錄檔加一條。
+ * 設定頁與題首切換按鈕都從 THEMES 自動讀取,無需再改別處。
  */
-export type ThemeName = 'day' | 'night' | 'pastel' | 'green' | 'st';
+export type ThemeName = 'tiger' | 'peach' | 'starry' | 'sand' | 'st';
 
 export interface ThemeDef {
   value: ThemeName;
   label: string;
-  /** Icon 组件名,见 components/Icon.vue */
+  /** Icon 元件名,見 components/Icon.vue */
   icon: string;
 }
 
 export const THEMES: ThemeDef[] = [
-  { value: 'day', label: '日间', icon: 'sun' },
-  { value: 'night', label: '夜间', icon: 'moon' },
-  { value: 'pastel', label: '粉彩', icon: 'sparkles' },
-  { value: 'green', label: '木白', icon: 'sparkles' },
-  { value: 'st', label: '跟随ST', icon: 'plug' },
+  { value: 'tiger', label: '虎哩', icon: 'tiger' },
+  { value: 'peach', label: '蜜桃', icon: 'peach' },
+  { value: 'starry', label: '星空', icon: 'moon' },
+  { value: 'sand', label: '暖沙', icon: 'sun' },
+  { value: 'st', label: '跟隨ST', icon: 'plug' },
 ];
+
+/** 新安裝的預設主題;舊版主題(日間/夜間/粉彩/木白)已移除,存著舊值的使用者也落到這裡。 */
+export const DEFAULT_THEME: ThemeName = 'tiger';
 
 interface UiState {
   open: boolean;
-  /** 当前分页 id,对应 registry 里的 key */
+  /** 當前分頁 id,對應 registry 裡的 key */
   activePage: string;
   theme: ThemeName;
   navPosition: NavPosition;
-  /** 移动端:再点当前页导航按钮即关窗(默认开,怕误触可关) */
+  /** 移動端:再點當前頁導航按鈕即關窗(預設開,怕誤觸可關) */
   navTapClose: boolean;
-  /** 在 ST 顶栏注入快速打开按钮(默认关) */
+  /** 在 ST 頂欄注入快速開啟按鈕(預設關) */
   showTopBar: boolean;
-  /** 屏幕边缘悬浮球(默认关) */
+  /** 螢幕邊緣懸浮球(預設關) */
   showOrb: boolean;
-  /** 悬浮球自定义图标(ST 服务器图片路径;空=默认画笔图标) */
+  /** 懸浮球自定義圖示(ST 伺服器圖片路徑;空=預設畫筆圖示) */
   orbImage: string;
-  /** 悬浮球形状:bookmark / circle / square */
+  /** 懸浮球形狀:bookmark / circle / square */
   orbShape: OrbShape;
-  /** 悬浮球静止不透明度(百分比 20–100) */
+  /** 懸浮球靜止不透明度(百分比 20–100) */
   orbOpacity: number;
-  /** 悬浮球基准尺寸(px,32–80) */
+  /** 懸浮球基準尺寸(px,32–80) */
   orbSize: number;
 }
 
-/** 悬浮球形状 */
+/** 懸浮球形狀 */
 export type OrbShape = 'bookmark' | 'circle' | 'square';
 export const ORB_SHAPES: { value: OrbShape; label: string }[] = [
-  { value: 'bookmark', label: '书签' },
-  { value: 'circle', label: '圆形' },
+  { value: 'bookmark', label: '書籤' },
+  { value: 'circle', label: '圓形' },
   { value: 'square', label: '方形' },
 ];
 function validOrbShape(s: string): OrbShape {
   return s === 'bookmark' || s === 'circle' || s === 'square' ? s : 'bookmark';
 }
 
-// activePage(上次停在哪一页)是纯本机临时导航态,跨设备同步无意义、且翻页即回写服务器太频繁,
-// 故仍存本机 localStorage;主题/导航位置是真·设置,改存进 settings.ui(→ ST 跨设备同步)。
+// activePage(上次停在哪一頁)是純本機臨時導航態,跨裝置同步無意義、且翻頁即回寫伺服器太頻繁,
+// 故仍存本機 localStorage;主題/導航位置是真·設定,改存進 settings.ui(→ ST 跨裝置同步)。
 const PAGE_STORAGE_KEY = 'bbi.ui.page.v1';
 
 function loadActivePage(): string {
@@ -80,15 +83,15 @@ function loadActivePage(): string {
   }
 }
 
-// 主题合法性校验:settings.ui.theme 是裸字符串,可能来自旧版本/被手改坏,落到 ui 前先校验。
+// 主題合法性校驗:settings.ui.theme 是裸字串,可能來自舊版本/被手改壞,落到 ui 前先校驗。
 function validTheme(t: string): ThemeName {
-  return THEMES.some(x => x.value === t) ? (t as ThemeName) : 'day';
+  return THEMES.some(x => x.value === t) ? (t as ThemeName) : DEFAULT_THEME;
 }
 function validNav(n: string): NavPosition {
   return n === 'top' || n === 'bottom' || n === 'auto' ? n : 'auto';
 }
 
-// 先用 settings 当前值建 ui(import 阶段多为默认;hydrate 完成后由 onSettingsReady 回灌真值)。
+// 先用 settings 當前值建 ui(import 階段多為預設;hydrate 完成後由 onSettingsReady 回灌真值)。
 export const ui = reactive<UiState>({
   open: false,
   activePage: loadActivePage(),
@@ -103,7 +106,7 @@ export const ui = reactive<UiState>({
   orbSize: settings.ui.orbSize,
 });
 
-// settings 跨设备同步值就绪后,把主题/导航回灌进 ui(覆盖 import 阶段的默认)
+// settings 跨裝置同步值就緒後,把主題/導航回灌進 ui(覆蓋 import 階段的預設)
 onSettingsReady(() => {
   ui.theme = validTheme(settings.ui.theme);
   ui.navPosition = validNav(settings.ui.navPosition);
@@ -116,7 +119,7 @@ onSettingsReady(() => {
   ui.orbSize = settings.ui.orbSize;
 });
 
-// ui 改变 → 写回 settings.ui(由 settings 的 watch 防抖落盘、跨设备同步);activePage 仍存本机。
+// ui 改變 → 寫回 settings.ui(由 settings 的 watch 防抖落盤、跨裝置同步);activePage 仍存本機。
 watch(
   () => [
     ui.theme,
@@ -147,14 +150,14 @@ watch(
     try {
       localStorage.setItem(PAGE_STORAGE_KEY, ui.activePage);
     } catch {
-      /* localStorage 不可用时静默 */
+      /* localStorage 不可用時靜默 */
     }
   },
 );
 
 /**
- * 窗口最近一次打开的时间戳。用于在打开瞬间忽略遮罩关闭——
- * 移动端打开手势末尾合成的 click 会穿透到刚渲染的遮罩,造成"秒关"。
+ * 視窗最近一次開啟的時間戳。用於在開啟瞬間忽略遮罩關閉——
+ * 移動端開啟手勢末尾合成的 click 會穿透到剛渲染的遮罩,造成"秒關"。
  */
 export let lastOpenedAt = 0;
 
@@ -168,7 +171,7 @@ export function closePanel() {
   ui.open = false;
 }
 
-/** 题首按钮:在所有已注册主题间循环切换 */
+/** 題首按鈕:在所有已註冊主題間迴圈切換 */
 export function cycleTheme() {
   const i = THEMES.findIndex(t => t.value === ui.theme);
   ui.theme = THEMES[(i + 1) % THEMES.length].value;

@@ -6,14 +6,15 @@ import { getPage } from '@/pages/registry';
 import { closePanel, cycleTheme, lastOpenedAt, modalHost, THEMES, ui } from '@/state/ui';
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 
-// 题首主题按钮:显示「下一个」主题的图标与名,点击即切换到它
+// 題首主題按鈕:圖示是「目前」主題,提示文字說明點選後切到哪一套
+const currentTheme = computed(() => THEMES.find(t => t.value === ui.theme) ?? THEMES[0]);
 const nextTheme = computed(() => {
   const i = THEMES.findIndex(t => t.value === ui.theme);
   return THEMES[(i + 1) % THEMES.length];
 });
 
-// 是否窄屏(移动端):用于 nav 'auto' 的方向判定 + 抽屉手势开关。
-// matchMedia 变化 Vue 不会自动追踪,用 ref 桥接成响应式。
+// 是否窄屏(移動端):用於 nav 'auto' 的方向判定 + 抽屜手勢開關。
+// matchMedia 變化 Vue 不會自動追蹤,用 ref 橋接成響應式。
 const isNarrow = window.matchMedia('(max-width: 640px)');
 const narrowFlag = ref(isNarrow.matches);
 const onMq = (e: MediaQueryListEvent) => (narrowFlag.value = e.matches);
@@ -28,8 +29,8 @@ const navPlacement = computed<'top' | 'bottom'>(() => {
 
 const current = computed(() => getPage(ui.activePage));
 
-// —— 遮罩点击关闭:仅当按下与松开都在遮罩本身。
-// 避免:1) 移动端打开手势的合成 click 穿透秒关;2) 窗内按下拖到窗外误关。
+// —— 遮罩點選關閉:僅當按下與鬆開都在遮罩本身。
+// 避免:1) 移動端開啟手勢的合成 click 穿透秒關;2) 窗內按下拖到窗外誤關。
 let pressedOnOverlay = false;
 
 function onOverlayPointerDown(e: PointerEvent) {
@@ -42,12 +43,12 @@ function onOverlayClick(e: MouseEvent) {
   pressedOnOverlay = false;
 }
 
-// —— 移动端:下滑关闭抽屉 ——
-const dragY = ref(0); // 当前下拉位移(px)
+// —— 移動端:下滑關閉抽屜 ——
+const dragY = ref(0); // 當前下拉位移(px)
 const dragging = ref(false);
 let startY = 0;
 let activePointer: number | null = null;
-const CLOSE_THRESHOLD = 110; // 超过此位移松手即关闭
+const CLOSE_THRESHOLD = 110; // 超過此位移鬆手即關閉
 
 function onHandleDown(e: PointerEvent) {
   if (!narrowFlag.value) return;
@@ -59,7 +60,7 @@ function onHandleDown(e: PointerEvent) {
 
 function onHandleMove(e: PointerEvent) {
   if (!dragging.value || e.pointerId !== activePointer) return;
-  // 只跟随向下的位移
+  // 只跟隨向下的位移
   dragY.value = Math.max(0, e.clientY - startY);
 }
 
@@ -73,7 +74,7 @@ function onHandleUp(e: PointerEvent) {
   dragY.value = 0;
 }
 
-// 抽屉跟手样式:拖动时禁用过渡,松手时回弹有过渡
+// 抽屜跟手樣式:拖動時停用過渡,鬆手時回彈有過渡
 const windowStyle = computed(() => {
   if (!narrowFlag.value || dragY.value === 0) return undefined;
   return {
@@ -85,10 +86,10 @@ const windowStyle = computed(() => {
 
 <template>
   <div class="bbi-root" :data-theme="ui.theme">
-    <!-- 弹窗 Teleport 宿主:.bbi-root 直接子级,在 .bbi-body 滚动容器之外。
-         各页弹窗 Teleport 到此,避开 iOS「可滚动祖先内 fixed 后代定位错乱」(详见 state/ui.ts)。 -->
+    <!-- 彈窗 Teleport 宿主:.bbi-root 直接子級,在 .bbi-body 滾動容器之外。
+         各頁彈窗 Teleport 到此,避開 iOS「可滾動祖先內 fixed 後代定位錯亂」(詳見 state/ui.ts)。 -->
     <div ref="modalHost"></div>
-    <!-- 悬浮球:留在 shadow 内才能用 --bbi-* 主题变量;自身 position:fixed 贴边,不受 host 影响 -->
+    <!-- 懸浮球:留在 shadow 內才能用 --bbi-* 主題變數;自身 position:fixed 貼邊,不受 host 影響 -->
     <FloatingOrb v-if="ui.showOrb" />
     <Transition name="bbi-fade">
       <div
@@ -99,12 +100,12 @@ const windowStyle = computed(() => {
         @keydown.esc="closePanel"
         tabindex="-1"
       >
-        <!-- 窗口常驻于遮罩内(不独立 v-if、不嵌套 Transition):
-             嵌套 Transition 在父子 v-if 同时翻转时,子的 leave 不会触发(实测窗口直接随父被移除,
-             无任何动画)。改由遮罩 Transition 的 class 作后代选择器驱动窗口的进出场动画
-             (见 <style> 里 .bbi-fade-enter-from/.bbi-fade-leave-to 下的 .bbi-window)。 -->
-        <div class="bbi-window" :style="windowStyle" role="dialog" aria-modal="true" aria-label="柏宝绘">
-            <!-- 移动端抓手:可下滑关闭 -->
+        <!-- 視窗常駐於遮罩內(不獨立 v-if、不巢狀 Transition):
+             巢狀 Transition 在父子 v-if 同時翻轉時,子的 leave 不會觸發(實測視窗直接隨父被移除,
+             無任何動畫)。改由遮罩 Transition 的 class 作後代選擇器驅動視窗的進出場動畫
+             (見 <style> 裡 .bbi-fade-enter-from/.bbi-fade-leave-to 下的 .bbi-window)。 -->
+        <div class="bbi-window" :style="windowStyle" role="dialog" aria-modal="true" aria-label="虎哩繪">
+            <!-- 移動端抓手:可下滑關閉 -->
             <div
               v-if="navPlacement !== 'top' || narrowFlag"
               class="bbi-grabber"
@@ -116,14 +117,19 @@ const windowStyle = computed(() => {
               <span class="bbi-grabber-bar"></span>
             </div>
 
-            <!-- 题首 -->
+            <!-- 題首 -->
             <header class="bbi-head">
-              <span class="bbi-brand-name">柏宝绘</span>
+              <span class="bbi-brand-name">虎哩繪</span>
               <div class="bbi-head-actions">
-                <button class="bbi-icon-btn" type="button" :title="`切换主题:${nextTheme.label}`" @click="cycleTheme">
-                  <Icon :name="nextTheme.icon" />
+                <button
+                  class="bbi-icon-btn"
+                  type="button"
+                  :title="`主題:${currentTheme.label}(點選切換到${nextTheme.label})`"
+                  @click="cycleTheme"
+                >
+                  <Icon :name="currentTheme.icon" />
                 </button>
-                <button class="bbi-icon-btn" type="button" title="关闭" @click="closePanel">
+                <button class="bbi-icon-btn" type="button" title="關閉" @click="closePanel">
                   <Icon name="close" />
                 </button>
               </div>
@@ -145,7 +151,7 @@ const windowStyle = computed(() => {
 </template>
 
 <style scoped>
-/* —— 移动端抓手:桌面隐藏 —— */
+/* —— 移動端抓手:桌面隱藏 —— */
 .bbi-grabber {
   display: none;
 }
@@ -194,7 +200,7 @@ const windowStyle = computed(() => {
   outline-offset: 2px;
 }
 
-/* —— 过渡:遮罩淡入淡出,窗口靠遮罩的过渡 class 联动(见下) —— */
+/* —— 過渡:遮罩淡入淡出,視窗靠遮罩的過渡 class 聯動(見下) —— */
 .bbi-fade-enter-active,
 .bbi-fade-leave-active {
   transition: opacity var(--bbi-dur) var(--bbi-ease);
@@ -204,9 +210,9 @@ const windowStyle = computed(() => {
   opacity: 0;
 }
 
-/* 窗口进出场:由遮罩 Transition 的 class 作后代选择器驱动(窗口自身不再套 Transition——
-   父子 v-if 同时翻转时子 Transition 的 leave 不触发,实测窗口会无动画直接被移除)。
-   进出场两端同款 transform → 对称。PC 微升+略放大;移动端在 media query 里改成滑回底部。 */
+/* 視窗進出場:由遮罩 Transition 的 class 作後代選擇器驅動(視窗自身不再套 Transition——
+   父子 v-if 同時翻轉時子 Transition 的 leave 不觸發,實測視窗會無動畫直接被移除)。
+   進出場兩端同款 transform → 對稱。PC 微升+略放大;移動端在 media query 裡改成滑回底部。 */
 .bbi-fade-enter-from .bbi-window,
 .bbi-fade-leave-to .bbi-window {
   opacity: 0;
@@ -228,15 +234,15 @@ const windowStyle = computed(() => {
   transform: translateY(-6px);
 }
 
-/* 窗口过渡:进出场(transform+opacity)与拖动回弹(transform)共用;
-   拖动跟手时由内联 style 的 transition:none 覆盖,松手回弹再走这条。 */
+/* 視窗過渡:進出場(transform+opacity)與拖動回彈(transform)共用;
+   拖動跟手時由內聯 style 的 transition:none 覆蓋,鬆手回彈再走這條。 */
 .bbi-window {
   transition:
     transform var(--bbi-dur) var(--bbi-ease),
     opacity var(--bbi-dur) var(--bbi-ease);
 }
 
-/* ============ 移动端:抓手 + 抽屉上滑入场 ============ */
+/* ============ 移動端:抓手 + 抽屜上滑入場 ============ */
 @media (max-width: 640px) {
   .bbi-grabber {
     display: flex;
@@ -256,17 +262,17 @@ const windowStyle = computed(() => {
   .bbi-head {
     padding: 4px 16px 12px;
   }
-  /* 抽屉从底部滑入 / 滑回底部(纯位移,不淡透明) */
+  /* 抽屜從底部滑入 / 滑回底部(純位移,不淡透明) */
   .bbi-fade-enter-from .bbi-window,
   .bbi-fade-leave-to .bbi-window {
     opacity: 1;
     transform: translateY(100%) scale(1);
   }
-  /* 遮罩离场延后淡出:让抽屉先滑回底部,背景殿后再撤,否则窗口随遮罩一起被拉透明,
-     滑动过程看不见(窗口是遮罩子元素,父 opacity 会合成到子)。 */
+  /* 遮罩離場延後淡出:讓抽屜先滑回底部,背景殿後再撤,否則視窗隨遮罩一起被拉透明,
+     滑動過程看不見(視窗是遮罩子元素,父 opacity 會合成到子)。 */
   .bbi-fade-leave-active {
     transition: opacity 0.16s var(--bbi-ease) 0.18s;
   }
-  /* 窗口滑回底部要走完整 --bbi-dur,不被上面遮罩的短时长牵连(各自 transition 独立,这里仅强调) */
+  /* 視窗滑回底部要走完整 --bbi-dur,不被上面遮罩的短時長牽連(各自 transition 獨立,這裡僅強調) */
 }
 </style>

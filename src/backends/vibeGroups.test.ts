@@ -19,114 +19,114 @@ function vibe(id: string, group = '', enabled = false, name = id): NaiVibe {
 }
 
 describe('groupKey', () => {
-  it('真实组名加前缀装箱,空名为未分组哨兵', () => {
-    expect(groupKey('战斗组')).toBe('g:战斗组');
+  it('真實組名加字首裝箱,空名為未分組哨兵', () => {
+    expect(groupKey('戰鬥組')).toBe('g:戰鬥組');
     expect(groupKey('')).toBe(UNGROUPED);
     expect(groupKey('   ')).toBe(UNGROUPED);
   });
 
-  it('用户把组命名成哨兵字面量也不会撞车', () => {
+  it('使用者把組命名成哨兵字面量也不會撞車', () => {
     expect(groupKey('ungrouped')).not.toBe(UNGROUPED);
     expect(groupKey('new')).toBe('g:new');
   });
 });
 
 describe('matchVibe', () => {
-  it('空查询全部命中', () => {
+  it('空查詢全部命中', () => {
     expect(matchVibe(vibe('a'), '')).toBe(true);
     expect(matchVibe(vibe('a'), '   ')).toBe(true);
   });
 
-  it('名字或组名子串命中,大小写不敏感', () => {
-    const v = { name: 'Sunset Girl', group: '风景组' };
+  it('名字或組名子串命中,大小寫不敏感', () => {
+    const v = { name: 'Sunset Girl', group: '風景組' };
     expect(matchVibe(v, 'sunset')).toBe(true);
     expect(matchVibe(v, 'GIRL')).toBe(true);
-    expect(matchVibe(v, '风景')).toBe(true);
-    expect(matchVibe(v, '战斗')).toBe(false);
+    expect(matchVibe(v, '風景')).toBe(true);
+    expect(matchVibe(v, '戰鬥')).toBe(false);
   });
 });
 
 describe('groupVibes', () => {
-  it('按组归拢,未分组永远垫底', () => {
+  it('按組歸攏,未分組永遠墊底', () => {
     const groups = groupVibes([
       vibe('1'),
-      vibe('2', '战斗组'),
+      vibe('2', '戰鬥組'),
       vibe('3'),
-      vibe('4', '日常组'),
-      vibe('5', '战斗组'),
+      vibe('4', '日常組'),
+      vibe('5', '戰鬥組'),
     ]);
-    expect(groups.map(g => g.label)).toEqual(['战斗组', '日常组', '未分组']);
+    expect(groups.map(g => g.label)).toEqual(['戰鬥組', '日常組', '未分組']);
     expect(groups[0].all.map(v => v.id)).toEqual(['2', '5']);
     expect(groups[2].all.map(v => v.id)).toEqual(['1', '3']);
   });
 
-  it('有名字的组按库中首次出现顺序排', () => {
-    const groups = groupVibes([vibe('1', 'Z组'), vibe('2', 'A组')]);
-    expect(groups.map(g => g.label)).toEqual(['Z组', 'A组']);
+  it('有名字的組按庫中首次出現順序排', () => {
+    const groups = groupVibes([vibe('1', 'Z組'), vibe('2', 'A組')]);
+    expect(groups.map(g => g.label)).toEqual(['Z組', 'A組']);
   });
 
-  it('搜索只收窄 items,all 始终是全量成员', () => {
+  it('搜尋只收窄 items,all 始終是全量成員', () => {
     const groups = groupVibes(
-      [vibe('1', '战斗组', false, '剑光'), vibe('2', '战斗组', false, '火焰'), vibe('3', '日常组', false, '咖啡')],
-      '剑',
+      [vibe('1', '戰鬥組', false, '劍光'), vibe('2', '戰鬥組', false, '火焰'), vibe('3', '日常組', false, '咖啡')],
+      '劍',
     );
     expect(groups).toHaveLength(1);
     expect(groups[0].items.map(v => v.id)).toEqual(['1']);
-    // 关键:同组被搜索藏起来的「火焰」仍在 all 里,批量动作才不会把它误关
+    // 關鍵:同組被搜尋藏起來的「火焰」仍在 all 裡,批次動作才不會把它誤關
     expect(groups[0].all.map(v => v.id)).toEqual(['1', '2']);
   });
 
-  it('搜索没命中的组不出现', () => {
-    const groups = groupVibes([vibe('1', '战斗组', false, '剑光'), vibe('2', '日常组', false, '咖啡')], '咖啡');
-    expect(groups.map(g => g.label)).toEqual(['日常组']);
+  it('搜尋沒命中的組不出現', () => {
+    const groups = groupVibes([vibe('1', '戰鬥組', false, '劍光'), vibe('2', '日常組', false, '咖啡')], '咖啡');
+    expect(groups.map(g => g.label)).toEqual(['日常組']);
   });
 
-  it('按组名搜索能带出整组', () => {
-    const groups = groupVibes([vibe('1', '战斗组', false, '剑光'), vibe('2', '战斗组', false, '火焰')], '战斗');
+  it('按組名搜尋能帶出整組', () => {
+    const groups = groupVibes([vibe('1', '戰鬥組', false, '劍光'), vibe('2', '戰鬥組', false, '火焰')], '戰鬥');
     expect(groups[0].items).toHaveLength(2);
   });
 
-  it('组名首尾空格归一到同一组', () => {
-    const groups = groupVibes([vibe('1', '战斗组'), vibe('2', ' 战斗组 ')]);
+  it('組名首尾空格歸一到同一組', () => {
+    const groups = groupVibes([vibe('1', '戰鬥組'), vibe('2', ' 戰鬥組 ')]);
     expect(groups).toHaveLength(1);
     expect(groups[0].all.map(v => v.id)).toEqual(['1', '2']);
   });
 
-  it('空库返回空数组', () => {
+  it('空庫返回空陣列', () => {
     expect(groupVibes([])).toEqual([]);
   });
 });
 
 describe('isGroupActive', () => {
-  it('启用集合恰好等于本组全部成员时才算生效', () => {
-    const vibes = [vibe('1', '战斗组', true), vibe('2', '战斗组', true), vibe('3', '日常组', false)];
+  it('啟用集合恰好等於本組全部成員時才算生效', () => {
+    const vibes = [vibe('1', '戰鬥組', true), vibe('2', '戰鬥組', true), vibe('3', '日常組', false)];
     const [battle, daily] = groupVibes(vibes);
     expect(isGroupActive(battle, vibes)).toBe(true);
     expect(isGroupActive(daily, vibes)).toBe(false);
   });
 
-  it('组外多开一条即不再生效(不会显示骗人的生效中)', () => {
-    const vibes = [vibe('1', '战斗组', true), vibe('2', '日常组', true)];
+  it('組外多開一條即不再生效(不會顯示騙人的生效中)', () => {
+    const vibes = [vibe('1', '戰鬥組', true), vibe('2', '日常組', true)];
     const [battle] = groupVibes(vibes);
     expect(isGroupActive(battle, vibes)).toBe(false);
   });
 
-  it('组内漏开一条也不算生效', () => {
-    const vibes = [vibe('1', '战斗组', true), vibe('2', '战斗组', false)];
+  it('組內漏開一條也不算生效', () => {
+    const vibes = [vibe('1', '戰鬥組', true), vibe('2', '戰鬥組', false)];
     const [battle] = groupVibes(vibes);
     expect(isGroupActive(battle, vibes)).toBe(false);
   });
 
-  it('搜索期间的判定仍按全量成员算', () => {
-    const vibes = [vibe('1', '战斗组', true, '剑光'), vibe('2', '战斗组', false, '火焰')];
-    // 搜索只剩「剑光」,但「火焰」未启用 → 整组不算生效
-    const [battle] = groupVibes(vibes, '剑');
+  it('搜尋期間的判定仍按全量成員算', () => {
+    const vibes = [vibe('1', '戰鬥組', true, '劍光'), vibe('2', '戰鬥組', false, '火焰')];
+    // 搜尋只剩「劍光」,但「火焰」未啟用 → 整組不算生效
+    const [battle] = groupVibes(vibes, '劍');
     expect(battle.items).toHaveLength(1);
     expect(isGroupActive(battle, vibes)).toBe(false);
   });
 
-  it('全部未启用时不算生效', () => {
-    const vibes = [vibe('1', '战斗组', false)];
+  it('全部未啟用時不算生效', () => {
+    const vibes = [vibe('1', '戰鬥組', false)];
     const [battle] = groupVibes(vibes);
     expect(isGroupActive(battle, vibes)).toBe(false);
   });

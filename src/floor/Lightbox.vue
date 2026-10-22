@@ -7,50 +7,50 @@ import { copyText } from '@/st/clipboard';
 import { modalHost } from '@/state/ui';
 
 /**
- * 图片灯箱(楼层卡片点击放大)。
+ * 圖片燈箱(樓層卡片點選放大)。
  *
- * 为什么自建而不用 ST 原生:ST 的灯箱入口 `.mes_img` 只是个 class,真正的
- * expandMessageMedia 读的是 `chat[mesid].extra.media[data-index]` 数据模型,且该函数
- * 模块私有、未导出到 context——光加 class 会直接 bail。走官方 extra.media 那条路能白嫖
- * 灯箱,但图片会被挂到 `.mes_media_wrapper`(.mes_text 的兄弟节点),脱离 tag 的行内位置,
- * 与「图出现在 tag 所在段落」的核心设计冲突,还得再维护一份与 extra.bbiImage 平行的存储。
+ * 為什麼自建而不用 ST 原生:ST 的燈箱入口 `.mes_img` 只是個 class,真正的
+ * expandMessageMedia 讀的是 `chat[mesid].extra.media[data-index]` 資料模型,且該函式
+ * 模組私有、未匯出到 context——光加 class 會直接 bail。走官方 extra.media 那條路能白嫖
+ * 燈箱,但圖片會被掛到 `.mes_media_wrapper`(.mes_text 的兄弟節點),脫離 tag 的行內位置,
+ * 與「圖出現在 tag 所在段落」的核心設計衝突,還得再維護一份與 extra.bbiImage 平行的儲存。
  *
- * 【长按保存】移动端能长按保存图片,靠三条约束共同保证,改动时务必保留:
- * 1. 只监听 click,绝不在图片上 preventDefault touchstart/touchend——长按唤出系统菜单时
- *    浏览器不会补发 click,两者天然不冲突;一旦自己拦 touch,长按保存立刻失效。
- * 2. 图片不加 user-select:none / -webkit-touch-callout:none / draggable=false。
- * 3. 显式 touch-action:auto 抵消 ST 的 `body{touch-action:none}`
- *    (css/mobile-styles.css:251,移动端 ≤1000px 全局)——它会干扰部分引擎的长按判定。
- * 【二段放大与平移】点击图片在「适应屏幕 ↔ 原始尺寸」间切换(放大 = 1:1 检查
- * 脸/手等细节,决定留还是重绘)。放大后的平移分两条路:
- * - 桌面:鼠标拖拽(pointer 事件只认 pointerType==='mouse',5px 阈值区分点击与拖动);
- * - 移动:stage 的原生溢出滚动,**不监听任何 touch 事件**(见上面三条约束)。
- * stage 居中用图片 margin:auto 而非 justify-content:center——后者会把放大后
- * 左/上两侧的溢出挤出滚动可达区(移动端「只能上下滚」的元凶)。
+ * 【長按儲存】移動端能長按儲存圖片,靠三條約束共同保證,改動時務必保留:
+ * 1. 只監聽 click,絕不在圖片上 preventDefault touchstart/touchend——長按喚出系統選單時
+ *    瀏覽器不會補發 click,兩者天然不衝突;一旦自己攔 touch,長按儲存立刻失效。
+ * 2. 圖片不加 user-select:none / -webkit-touch-callout:none / draggable=false。
+ * 3. 顯式 touch-action:auto 抵消 ST 的 `body{touch-action:none}`
+ *    (css/mobile-styles.css:251,移動端 ≤1000px 全域性)——它會干擾部分引擎的長按判定。
+ * 【二段放大與平移】點選圖片在「適應螢幕 ↔ 原始尺寸」間切換(放大 = 1:1 檢查
+ * 臉/手等細節,決定留還是重繪)。放大後的平移分兩條路:
+ * - 桌面:滑鼠拖拽(pointer 事件只認 pointerType==='mouse',5px 閾值區分點選與拖動);
+ * - 移動:stage 的原生溢位滾動,**不監聽任何 touch 事件**(見上面三條約束)。
+ * stage 居中用圖片 margin:auto 而非 justify-content:center——後者會把放大後
+ * 左/上兩側的溢位擠出滾動可達區(移動端「只能上下滾」的元兇)。
  */
 
 const props = defineProps<{
   src: string;
-  /** 提示词原文(复制用);空则不显示复制按钮。 */
+  /** 提示詞原文(複製用);空則不顯示複製按鈕。 */
   prompt?: string;
-  /** 下载文件名。 */
+  /** 下載檔名。 */
   filename?: string;
-  /** 有值才显示删除按钮。 */
+  /** 有值才顯示刪除按鈕。 */
   deletable?: boolean;
 }>();
 
 const emit = defineEmits<{ close: []; delete: [] }>();
 
-/** 适应屏幕 ↔ 原始尺寸。 */
+/** 適應螢幕 ↔ 原始尺寸。 */
 const zoomed = ref(false);
 
-/** 滚动容器(放大后平移用)。 */
+/** 滾動容器(放大後平移用)。 */
 const stage = ref<HTMLElement | null>(null);
 
-/** 拖动平移后的那次 click 要吞掉,否则一拖完图片就缩回去了。 */
+/** 拖動平移後的那次 click 要吞掉,否則一拖完圖片就縮回去了。 */
 let suppressClick = false;
 
-/** 点击切换缩放;放大时把点击点滚到视口中央(点哪看哪)。 */
+/** 點選切換縮放;放大時把點選點滾到視口中央(點哪看哪)。 */
 async function onImageClick(event: MouseEvent): Promise<void> {
   if (suppressClick) {
     suppressClick = false;
@@ -74,9 +74,9 @@ async function onImageClick(event: MouseEvent): Promise<void> {
 }
 
 /**
- * 鼠标拖拽平移(仅放大态、仅鼠标)。
- * 触屏不碰:触摸平移交给 stage 的原生溢出滚动(img 上的 touch-action:auto 就是
- * 为它和长按保存留的),自己拦触摸会违反顶部的长按保存三约束。
+ * 滑鼠拖拽平移(僅放大態、僅滑鼠)。
+ * 觸屏不碰:觸控平移交給 stage 的原生溢位滾動(img 上的 touch-action:auto 就是
+ * 為它和長按儲存留的),自己攔觸控會違反頂部的長按儲存三約束。
  */
 let pan: { x: number; y: number; left: number; top: number; moved: boolean } | null = null;
 
@@ -93,7 +93,7 @@ function onPointerMove(event: PointerEvent): void {
   if (!pan || !el) return;
   const dx = event.clientX - pan.x;
   const dy = event.clientY - pan.y;
-  if (!pan.moved && Math.hypot(dx, dy) < 5) return; // 阈值内算点击,保留点击缩放
+  if (!pan.moved && Math.hypot(dx, dy) < 5) return; // 閾值內算點選,保留點選縮放
   pan.moved = true;
   el.scrollLeft = pan.left - dx;
   el.scrollTop = pan.top - dy;
@@ -104,7 +104,7 @@ function onPointerUp(): void {
   pan = null;
 }
 
-/** 放大态平移时拦掉图片原生拖拽残影;非放大态保持原生行为,一概不动。 */
+/** 放大態平移時攔掉圖片原生拖拽殘影;非放大態保持原生行為,一概不動。 */
 function onDragStart(event: DragEvent): void {
   if (zoomed.value) event.preventDefault();
 }
@@ -117,7 +117,7 @@ function onKeydown(event: KeyboardEvent): void {
 }
 
 onMounted(() => {
-  // 捕获阶段:抢在 ST 的全局快捷键之前拿到 Esc
+  // 捕獲階段:搶在 ST 的全域性快捷鍵之前拿到 Esc
   document.addEventListener('keydown', onKeydown, true);
 });
 onBeforeUnmount(() => {
@@ -125,7 +125,7 @@ onBeforeUnmount(() => {
 });
 
 async function copyPrompt(): Promise<void> {
-  await copyText(props.prompt ?? '', '提示词已复制');
+  await copyText(props.prompt ?? '', '提示詞已複製');
 }
 
 function save(): void {
@@ -136,21 +136,21 @@ const promptText = computed(() => (props.prompt ?? '').trim());
 </script>
 
 <template>
-  <!-- Teleport 到 modalHost(.bbi-root 直接子级):灯箱需要 --bbi-* 主题变量,
-       而 lightbox.ts 的容器挂在 shadow root 顶层、在 .bbi-root 之外拿不到变量。
-       与 ConfirmDialog 同款手法。 -->
+  <!-- Teleport 到 modalHost(.bbi-root 直接子級):燈箱需要 --bbi-* 主題變數,
+       而 lightbox.ts 的容器掛在 shadow root 頂層、在 .bbi-root 之外拿不到變數。
+       與 ConfirmDialog 同款手法。 -->
   <Teleport :to="modalHost" :disabled="!modalHost">
-    <!-- 遮罩自身承接关闭点击;图片与操作栏 stop 掉,避免误关 -->
+    <!-- 遮罩自身承接關閉點選;圖片與操作欄 stop 掉,避免誤關 -->
     <div class="bbi-lightbox" @click="emit('close')">
       <div class="bbi-lightbox__bar" @click.stop>
-        <button class="bbi-lb-btn" type="button" title="保存图片" @click="save">
+        <button class="bbi-lb-btn" type="button" title="儲存圖片" @click="save">
           <Icon name="download" :size="18" />
         </button>
         <button
           v-if="promptText"
           class="bbi-lb-btn"
           type="button"
-          title="复制提示词"
+          title="複製提示詞"
           @click="copyPrompt"
         >
           <Icon name="copy" :size="18" />
@@ -159,17 +159,17 @@ const promptText = computed(() => (props.prompt ?? '').trim());
           v-if="deletable"
           class="bbi-lb-btn bbi-lb-btn--danger"
           type="button"
-          title="删除这张图"
+          title="刪除這張圖"
           @click="emit('delete')"
         >
           <Icon name="trash" :size="18" />
         </button>
-        <button class="bbi-lb-btn" type="button" title="关闭 (Esc)" @click="emit('close')">
+        <button class="bbi-lb-btn" type="button" title="關閉 (Esc)" @click="emit('close')">
           <Icon name="close" :size="18" />
         </button>
       </div>
 
-      <!-- 图片容器:zoomed 时滚动(触屏)/ 鼠标拖拽查看原图 -->
+      <!-- 圖片容器:zoomed 時滾動(觸屏)/ 滑鼠拖拽檢視原圖 -->
       <div
         ref="stage"
         class="bbi-lightbox__stage"
@@ -179,7 +179,7 @@ const promptText = computed(() => (props.prompt ?? '').trim());
         <img
           class="bbi-lightbox__img"
           :src="src"
-          alt="生图结果"
+          alt="生圖結果"
           :data-zoomed="zoomed ? '1' : ''"
           @click.stop="onImageClick"
           @pointerdown="onPointerDown"
@@ -203,7 +203,7 @@ const promptText = computed(() => (props.prompt ?? '').trim());
   bottom: 0;
   left: 0;
   width: 100%;
-  /* 与 base.css 的遮罩同款:部分移动端 WebView 不认 inset/百分比链,显式给视口高 */
+  /* 與 base.css 的遮罩同款:部分移動端 WebView 不認 inset/百分比鏈,顯式給視口高 */
   height: 100vh;
   height: 100dvh;
   z-index: 10050;
@@ -249,9 +249,9 @@ const promptText = computed(() => (props.prompt ?? '').trim());
   color: #fff;
 }
 
-/* 居中不用 justify-content/align-items:center:放大后图片比容器宽时,flex 居中
-   会把左/上两侧的溢出挤出滚动可达区(移动端「只能上下滚」的元凶)。
-   改用图片自身 margin:auto——小时居中,大时自动边距归零、起点对齐,四向皆可滚。 */
+/* 居中不用 justify-content/align-items:center:放大後圖片比容器寬時,flex 居中
+   會把左/上兩側的溢位擠出滾動可達區(移動端「只能上下滾」的元兇)。
+   改用圖片自身 margin:auto——小時居中,大時自動邊距歸零、起點對齊,四向皆可滾。 */
 .bbi-lightbox__stage {
   flex: 1 1 auto;
   min-height: 0;
@@ -268,11 +268,11 @@ const promptText = computed(() => (props.prompt ?? '').trim());
   border-radius: var(--bbi-radius-sm);
   cursor: zoom-in;
   /* 抵消 ST 的 body{touch-action:none}(css/mobile-styles.css:251):
-     它会干扰部分引擎的长按保存判定,也会挡住放大后的触屏原生滚动。见 <script> 顶部注释。 */
+     它會干擾部分引擎的長按儲存判定,也會擋住放大後的觸屏原生滾動。見 <script> 頂部註釋。 */
   touch-action: auto;
 }
 
-/* 原始尺寸:超出部分由 __stage 滚动(触屏)/ 鼠标拖拽查看 */
+/* 原始尺寸:超出部分由 __stage 滾動(觸屏)/ 滑鼠拖拽檢視 */
 .bbi-lightbox__img[data-zoomed='1'] {
   max-width: none;
   max-height: none;
@@ -283,8 +283,8 @@ const promptText = computed(() => (props.prompt ?? '').trim());
   cursor: grabbing;
 }
 
-/* 放大态找回细滚动条(base.css 在 .bbi-root 内全局隐藏了滚动条),
-   给个「现在看到哪了」的位置感 */
+/* 放大態找回細捲軸(base.css 在 .bbi-root 內全域性隱藏了捲軸),
+   給個「現在看到哪了」的位置感 */
 .bbi-lightbox__stage[data-zoomed='1'] {
   scrollbar-width: thin;
   scrollbar-color: oklch(1 0 0 / 0.3) transparent;
@@ -314,7 +314,7 @@ const promptText = computed(() => (props.prompt ?? '').trim());
   line-height: 1.6;
   white-space: pre-wrap;
   word-break: break-word;
-  /* 提示词要可选中复制,故此处不禁用选择 */
+  /* 提示詞要可選中複製,故此處不停用選擇 */
   user-select: text;
 }
 </style>

@@ -1,17 +1,17 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 /**
- * NAI 接入点库(地址 + 密钥)的存量折叠与脏数据处理。
+ * NAI 接入點庫(地址 + 金鑰)的存量摺疊與髒資料處理。
  *
- * 起因是「公益站换着用」:同一套出图参数,要在多个出口之间切。故只有 url/key 随条目走,
- * 模型/采样器/尺寸/vibe/画师串一概留在渠道级 —— 换站不该逼人重配一遍参数。
+ * 起因是「公益站換著用」:同一套出圖引數,要在多個出口之間切。故只有 url/key 隨條目走,
+ * 模型/取樣器/尺寸/vibe/畫師串一概留在渠道級 —— 換站不該逼人重配一遍引數。
  *
- * 与画师串库**相反**的两条口径(与工作流库同侧),是本文件的主要看点:
- * 1. 库恒非空,且恒含内置官方那条:地址是必需品,空了直接出不了图;
- * 2. activeEndpointId 悬空回落 endpoints[0],**不**清空。画师串回落等于静默换画风
- *    (每张图都变样却查不出),接入点回落只是换个出口、出错会当场报连接失败,代价不对等。
+ * 與畫師串庫**相反**的兩條口徑(與工作流庫同側),是本檔案的主要看點:
+ * 1. 庫恆非空,且恆含內建官方那條:地址是必需品,空了直接出不了圖;
+ * 2. activeEndpointId 懸空回落 endpoints[0],**不**清空。畫師串回落等於靜默換畫風
+ *    (每張圖都變樣卻查不出),接入點回落只是換個出口、出錯會當場報連線失敗,代價不對等。
  *
- * 另有一条只属于这里:官方条的 url 由 normalize 强制纠回,手改 settings.json 也拗不过。
+ * 另有一條只屬於這裡:官方條的 url 由 normalize 強制糾回,手改 settings.json 也拗不過。
  */
 
 const mocks = vi.hoisted(() => ({
@@ -34,14 +34,14 @@ async function hydrateWithNai(nai: Record<string, unknown> | undefined) {
 
 const OFFICIAL = 'https://image.novelai.net';
 
-describe('NAI 接入点库 · 存量折叠', () => {
+describe('NAI 接入點庫 · 存量摺疊', () => {
   beforeEach(() => {
     vi.resetModules();
     vi.stubGlobal('toastr', { info: vi.fn(), success: vi.fn(), error: vi.fn() });
     vi.stubGlobal('window', { addEventListener: vi.fn(), dispatchEvent: vi.fn() });
   });
 
-  it('nai 键整个缺失 → 只有官方那一条,且被选中', async () => {
+  it('nai 鍵整個缺失 → 只有官方那一條,且被選中', async () => {
     const settings = await hydrateWithNai(undefined);
     expect(settings.nai.endpoints).toHaveLength(1);
     expect(settings.nai.endpoints[0].id).toBe('nep_official');
@@ -49,7 +49,7 @@ describe('NAI 接入点库 · 存量折叠', () => {
     expect(settings.nai.activeEndpointId).toBe('nep_official');
   });
 
-  it('存量用官方地址 → key 折进官方那条,**不**多出一条重复项', async () => {
+  it('存量用官方地址 → key 折進官方那條,**不**多出一條重複項', async () => {
     const settings = await hydrateWithNai({ url: OFFICIAL, key: 'nai-old' });
     expect(settings.nai.endpoints).toHaveLength(1);
     expect(settings.nai.endpoints[0].id).toBe('nep_official');
@@ -57,22 +57,22 @@ describe('NAI 接入点库 · 存量折叠', () => {
     expect(settings.nai.activeEndpointId).toBe('nep_official');
   });
 
-  it('存量地址留空 → 同样折进官方那条(空地址不值得单开一行)', async () => {
+  it('存量地址留空 → 同樣折進官方那條(空地址不值得單開一行)', async () => {
     const settings = await hydrateWithNai({ url: '', key: 'nai-old' });
     expect(settings.nai.endpoints).toHaveLength(1);
     expect(settings.nai.endpoints[0].id).toBe('nep_official');
     expect(settings.nai.endpoints[0].key).toBe('nai-old');
   });
 
-  it('存量地址带尾斜杠的官方 → 视作官方,仍折成一条', async () => {
+  it('存量地址帶尾斜槓的官方 → 視作官方,仍折成一條', async () => {
     const settings = await hydrateWithNai({ url: `${OFFICIAL}/`, key: 'k' });
     expect(settings.nai.endpoints).toHaveLength(1);
     expect(settings.nai.endpoints[0].id).toBe('nep_official');
     expect(settings.nai.endpoints[0].key).toBe('k');
   });
 
-  it('存量用第三方站 → 收成第一条并保持选中,官方条**追加在后**', async () => {
-    // 顺序是刻意的:官方排前面会把用户正在用的出口挤到第二行,看起来像被换掉了。
+  it('存量用第三方站 → 收成第一條並保持選中,官方條**追加在後**', async () => {
+    // 順序是刻意的:官方排前面會把使用者正在用的出口擠到第二行,看起來像被換掉了。
     const settings = await hydrateWithNai({ url: 'https://nai.example.org', key: 'sk-x' });
     expect(settings.nai.endpoints.map(e => e.url)).toEqual(['https://nai.example.org', OFFICIAL]);
     expect(settings.nai.endpoints[0].key).toBe('sk-x');
@@ -80,13 +80,13 @@ describe('NAI 接入点库 · 存量折叠', () => {
     expect(settings.nai.endpoints[1].id).toBe('nep_official');
   });
 
-  it('迁移后旧字段原样留着(回滚用,不参与出图)', async () => {
+  it('遷移後舊欄位原樣留著(回滾用,不參與出圖)', async () => {
     const settings = await hydrateWithNai({ url: 'https://nai.example.org', key: 'sk-x' });
     expect(settings.nai.key).toBe('sk-x');
     expect(settings.nai.url).toBe('https://nai.example.org');
   });
 
-  it('迁移幂等:已是新格式就原样保留,当前项不被动', async () => {
+  it('遷移冪等:已是新格式就原樣保留,當前項不被動', async () => {
     const first = await hydrateWithNai({
       endpoints: [
         { id: 'nep_a', name: '公益站 A', url: 'https://a.example', key: 'ka' },
@@ -101,40 +101,40 @@ describe('NAI 接入点库 · 存量折叠', () => {
   });
 });
 
-describe('NAI 接入点库 · 恒非空与官方条不变式', () => {
+describe('NAI 接入點庫 · 恆非空與官方條不變式', () => {
   beforeEach(() => {
     vi.resetModules();
     vi.stubGlobal('toastr', { info: vi.fn(), success: vi.fn(), error: vi.fn() });
     vi.stubGlobal('window', { addEventListener: vi.fn(), dispatchEvent: vi.fn() });
   });
 
-  it('官方条被手工删掉 → 自动补回(库里永远有一个能用的出口)', async () => {
+  it('官方條被手工刪掉 → 自動補回(庫裡永遠有一個能用的出口)', async () => {
     const settings = await hydrateWithNai({
       endpoints: [{ id: 'nep_a', name: 'A', url: 'https://a.example', key: 'ka' }],
       activeEndpointId: 'nep_a',
     });
     expect(settings.nai.endpoints.map(e => e.id)).toEqual(['nep_a', 'nep_official']);
-    // 补回来不抢选中:用户当前用的还是 A
+    // 補回來不搶選中:使用者當前用的還是 A
     expect(settings.nai.activeEndpointId).toBe('nep_a');
   });
 
-  it('官方条的 url 被手改 → 强制纠回官方地址', async () => {
+  it('官方條的 url 被手改 → 強制糾回官方地址', async () => {
     const settings = await hydrateWithNai({
       endpoints: [{ id: 'nep_official', name: '假官方', url: 'https://evil.example', key: 'k' }],
       activeEndpointId: 'nep_official',
     });
     expect(settings.nai.endpoints[0].url).toBe(OFFICIAL);
-    // 名字也归回内置名(官方条不可改名,脏数据同样纠正);key 是用户自己的,保留
+    // 名字也歸回內建名(官方條不可改名,髒資料同樣糾正);key 是使用者自己的,保留
     expect(settings.nai.endpoints[0].name).toBe('NovelAI 官方');
     expect(settings.nai.endpoints[0].key).toBe('k');
   });
 
-  it('endpoints 是空数组 → 按「没有新格式」走存量折叠,而不是留空库', async () => {
+  it('endpoints 是空陣列 → 按「沒有新格式」走存量摺疊,而不是留空庫', async () => {
     const settings = await hydrateWithNai({ endpoints: [], url: 'https://a.example', key: 'ka' });
     expect(settings.nai.endpoints.map(e => e.url)).toEqual(['https://a.example', OFFICIAL]);
   });
 
-  it('activeEndpointId 悬空 → 回落第一条,**不**清成空串', async () => {
+  it('activeEndpointId 懸空 → 回落第一條,**不**清成空串', async () => {
     const settings = await hydrateWithNai({
       endpoints: [
         { id: 'nep_a', name: 'A', url: 'https://a.example', key: 'ka' },
@@ -143,10 +143,10 @@ describe('NAI 接入点库 · 恒非空与官方条不变式', () => {
       activeEndpointId: 'nep_gone',
     });
     expect(settings.nai.activeEndpointId).toBe('nep_a');
-    expect(settings.nai.endpoints).toHaveLength(3); // A、B、补回的官方
+    expect(settings.nai.endpoints).toHaveLength(3); // A、B、補回的官方
   });
 
-  it('activeEndpointId 不是字符串 → 同样回落第一条', async () => {
+  it('activeEndpointId 不是字串 → 同樣回落第一條', async () => {
     const settings = await hydrateWithNai({
       endpoints: [{ id: 'nep_a', name: 'A', url: 'https://a.example', key: 'ka' }],
       activeEndpointId: 42,
@@ -154,7 +154,7 @@ describe('NAI 接入点库 · 恒非空与官方条不变式', () => {
     expect(settings.nai.activeEndpointId).toBe('nep_a');
   });
 
-  it('条目缺字段/含脏数据 → 逐项补齐,不整条丢弃', async () => {
+  it('條目缺欄位/含髒資料 → 逐項補齊,不整條丟棄', async () => {
     const settings = await hydrateWithNai({
       endpoints: [{ name: 'no id' }, null, { id: 'nep_c', url: 42, key: null }],
       activeEndpointId: 'nep_c',
@@ -163,15 +163,15 @@ describe('NAI 接入点库 · 恒非空与官方条不变式', () => {
     expect(first.id).toBeTruthy();
     expect(first.name).toBe('no id');
     expect(second.id).toBeTruthy();
-    expect(second.name).toBe('接入点 2');
+    expect(second.name).toBe('接入點 2');
     expect(second.url).toBe('');
-    // 非字符串归空串;有效 id 仍被 activeEndpointId 认到
+    // 非字串歸空串;有效 id 仍被 activeEndpointId 認到
     expect(third.url).toBe('');
     expect(third.key).toBe('');
     expect(settings.nai.activeEndpointId).toBe('nep_c');
   });
 
-  it('newNaiEndpoint 连续调用 id 不重复,前缀 nep_ 不与 art_/wf_/ch_ 撞', async () => {
+  it('newNaiEndpoint 連續呼叫 id 不重複,字首 nep_ 不與 art_/wf_/ch_ 撞', async () => {
     const { newNaiEndpoint } = await import('@/state/settings');
     const ids = [newNaiEndpoint(), newNaiEndpoint(), newNaiEndpoint()].map(e => e.id);
     expect(new Set(ids).size).toBe(3);
@@ -179,14 +179,14 @@ describe('NAI 接入点库 · 恒非空与官方条不变式', () => {
   });
 });
 
-describe('effectiveNai:出图只认当前接入点', () => {
+describe('effectiveNai:出圖只認當前接入點', () => {
   beforeEach(() => {
     vi.resetModules();
     vi.stubGlobal('toastr', { info: vi.fn(), success: vi.fn(), error: vi.fn() });
     vi.stubGlobal('window', { addEventListener: vi.fn(), dispatchEvent: vi.fn() });
   });
 
-  it('url/key 取当前条,其余出图参数一律沿用渠道级(换站不用重配)', async () => {
+  it('url/key 取當前條,其餘出圖引數一律沿用渠道級(換站不用重配)', async () => {
     mocks.context = {
       extensionSettings: {
         baibai_image: {
@@ -211,18 +211,18 @@ describe('effectiveNai:出图只认当前接入点', () => {
     const conn = effectiveNai();
     expect(conn.url).toBe('https://a.example');
     expect(conn.key).toBe('ka');
-    // 渠道级参数原样带过来,不因换站而变
+    // 渠道級引數原樣帶過來,不因換站而變
     expect(conn.model).toBe('nai-diffusion-4-5-full');
     expect(conn.steps).toBe(33);
 
-    // 切回官方:同一套参数,换个出口
+    // 切回官方:同一套引數,換個出口
     settings.nai.activeEndpointId = 'nep_official';
     expect(effectiveNai().url).toBe(OFFICIAL);
     expect(effectiveNai().key).toBe('ko');
     expect(effectiveNai().steps).toBe(33);
   });
 
-  it('运行中把 activeEndpointId 改坏 → activeNaiEndpoint 回落第一条,不返回 undefined', async () => {
+  it('執行中把 activeEndpointId 改壞 → activeNaiEndpoint 回落第一條,不返回 undefined', async () => {
     const settings = await hydrateWithNai({
       endpoints: [{ id: 'nep_a', name: 'A', url: 'https://a.example', key: 'ka' }],
       activeEndpointId: 'nep_a',

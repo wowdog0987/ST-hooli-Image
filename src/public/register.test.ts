@@ -5,9 +5,9 @@ import { charTagLib, emptyCharFields, type CharTagEntry } from '@/state/charTags
 
 vi.mock('@/st/context', () => ({ getContext: () => ({ getCurrentChatId: () => 'chat-a' }) }));
 
-// 本插件跑在浏览器里,ready/changed 是**真事件**;测试环境是 node,没有 window。
-// 拿 EventTarget 当替身:addEventListener/dispatchEvent 语义与浏览器一致,
-// 足以锁住「第三方能不能收到通知」这件事。必须在 import register 之前建好。
+// 本外掛跑在瀏覽器裡,ready/changed 是**真事件**;測試環境是 node,沒有 window。
+// 拿 EventTarget 當替身:addEventListener/dispatchEvent 語義與瀏覽器一致,
+// 足以鎖住「第三方能不能收到通知」這件事。必須在 import register 之前建好。
 vi.stubGlobal('window', new EventTarget());
 
 const { PUBLIC_CHANGED_EVENT, PUBLIC_READY_EVENT, registerPublicInterface } =
@@ -21,7 +21,7 @@ function entry(name: string): CharTagEntry {
   return { name, fields: emptyCharFields(), raw: '', nl: '', source: 'ai', desc: '', history: [] };
 }
 
-/** 等 queueMicrotask 与 Vue watch 的 flush 都跑完。 */
+/** 等 queueMicrotask 與 Vue watch 的 flush 都跑完。 */
 async function settle(): Promise<void> {
   await new Promise(resolve => setTimeout(resolve, 0));
 }
@@ -33,7 +33,7 @@ beforeEach(() => {
 describe('registerPublicInterface', () => {
   it('publishes on globalThis and announces readiness (the two ways to find it)', async () => {
     const ready = vi.fn();
-    // 比柏宝绘先加载的第三方只能靠事件——只给 globalThis 会逼它自己写轮询
+    // 比虎哩繪先載入的第三方只能靠事件——只給 globalThis 會逼它自己寫輪詢
     window.addEventListener(PUBLIC_READY_EVENT, ready);
     vi.spyOn(console, 'log').mockImplementation(() => {});
 
@@ -71,13 +71,13 @@ describe('registerPublicInterface', () => {
     const seen: unknown[] = [];
     const off = api().subscribe(notice => seen.push(notice));
 
-    charTagLib.entries = [entry('阿黛尔')];
+    charTagLib.entries = [entry('阿黛爾')];
     await settle();
     expect(seen).toHaveLength(1);
     expect(seen[0]).toMatchObject({ type: 'changed', apiVersion: 1 });
 
     off();
-    charTagLib.entries = [entry('别的')];
+    charTagLib.entries = [entry('別的')];
     await settle();
     expect(seen).toHaveLength(1);
   });
@@ -85,8 +85,8 @@ describe('registerPublicInterface', () => {
   it('coalesces a burst of library recomputes into one notice', async () => {
     const seen: unknown[] = [];
     const off = api().subscribe(notice => seen.push(notice));
-    // 切聊天/删楼/滑动会连着触发好几次重算;不攒的话第三方一秒收十几条一样的通知,
-    // 每条都可能引它做一次全量刷新
+    // 切聊天/刪樓/滑動會連著觸發好幾次重算;不攢的話第三方一秒收十幾條一樣的通知,
+    // 每條都可能引它做一次全量重新整理
     charTagLib.entries = [entry('a')];
     charTagLib.entries = [entry('b')];
     charTagLib.entries = [entry('c')];
@@ -125,7 +125,7 @@ describe('registerPublicInterface', () => {
     charTagLib.entries = [entry('y')];
     await settle();
 
-    // 一个第三方写崩了,不能连累其余订阅者与事件监听者
+    // 一個第三方寫崩了,不能連累其餘訂閱者與事件監聽者
     expect(good).toHaveBeenCalledTimes(1);
     expect(changed).toHaveBeenCalledTimes(1);
     offA();

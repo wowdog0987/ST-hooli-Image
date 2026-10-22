@@ -1,32 +1,29 @@
 import { requestFloorTags } from '@/autoTag/runner';
-import { confirmDialog } from '@/components/confirm';
 import { ensureChatObserver, onChatMutation } from '@/floor/chatObserver';
 import { isCurrentChatExcluded, settings } from '@/state/settings';
 import { getContext, isAiStoryMessage } from '@/st/context';
-import { hasImageTagTrace } from '@/st/imageTagRegex';
 
 /**
- * 楼层「生成生图 tag」按钮注入。
+ * 樓層「生成生圖 tag」按鈕注入。
  *
- * 每个剧情楼的 .extraMesButtons(ST 扩展按钮区,"⋯" 展开)追加一个调色板按钮
- * (与扩展菜单入口同款图标):
- * - 无 tag 的楼:直接分析并写入 tag;
- * - 已有 tag 的楼:先弹插件自绘确认窗,确认后剔除旧 tag、重新分析写入
- *   (旧图片保留在卡片历史里,新 tag 的卡片按 stale 机制展示旧图)。
+ * 每個劇情樓的 .extraMesButtons(ST 擴充套件按鈕區,"⋯" 展開)追加一個調色盤按鈕
+ * (與擴充套件選單入口同款圖示):
+ * 每按一次固定追加一張:第一次是本樓最值得畫的瞬間,之後每次是其餘裡最好的那一個;
+ * 既有 tag 與圖片原樣保留。單張重寫提示詞在卡片的提示詞編輯彈窗裡,不歸這顆按鈕。
  *
- * 给谁不给谁**只由 st/context.ts 的 isAiStoryMessage 说话**,与自动流程、与 runner
- * 的兜底闸门是同一个谓词:AI 楼给、用户楼与 ST 真系统楼不给,而被 /hide 隐藏的普通楼
- * 照给——它仍是剧情楼,runner 也放行。旧版这里直接读 DOM 的 is_system 属性,隐藏楼
- * 一律没有按钮(用户报的正是这个),而属性变更又不在 observer 的监听范围里,
- * 于是「隐藏前渲染过的楼留着按钮、隐藏后重渲染的楼没有按钮」同一条聊天两种样子。
+ * 給誰不給誰**只由 st/context.ts 的 isAiStoryMessage 說話**,與自動流程、與 runner
+ * 的兜底閘門是同一個謂詞:AI 樓給、使用者樓與 ST 真系統樓不給,而被 /hide 隱藏的普通樓
+ * 照給——它仍是劇情樓,runner 也放行。舊版這裡直接讀 DOM 的 is_system 屬性,隱藏樓
+ * 一律沒有按鈕(使用者報的正是這個),而屬性變更又不在 observer 的監聽範圍裡,
+ * 於是「隱藏前渲染過的樓留著按鈕、隱藏後重渲染的樓沒有按鈕」同一條聊天兩種樣子。
  *
- * 按钮是纯 DOM(fa 图标与 ST 原生扩展按钮同款观感),不进 Vue 树。
- * ST 重渲染会重建楼层 DOM,共用的 #chat 观察器(floor/chatObserver.ts)负责幂等对账
- * (该有的补、该撤的撤)。
+ * 按鈕是純 DOM(fa 圖示與 ST 原生擴充套件按鈕同款觀感),不進 Vue 樹。
+ * ST 重渲染會重建樓層 DOM,共用的 #chat 觀察器(floor/chatObserver.ts)負責冪等對賬
+ * (該有的補、該撤的撤)。
  */
 
 const BUTTON_CLASS = 'bbi-tag-action';
-// 与扩展菜单入口同款调色板图标
+// 與擴充套件選單入口同款調色盤圖示
 const ICON_CLASS = 'fa-palette';
 
 let bound = false;
@@ -43,41 +40,31 @@ async function onActivate(button: HTMLElement): Promise<void> {
   const floor = Number(button.closest('.mes')?.getAttribute('mesid'));
   const context = getContext();
   const message = Number.isInteger(floor) ? context?.chat?.[floor] : undefined;
-  // 点了必须有下文:静默 return 在用户那里就是「按钮点了没反应」,连日志都没有
+  // 點了必須有下文:靜默 return 在使用者那裡就是「按鈕點了沒反應」,連日誌都沒有
   if (!context || !message) {
-    console.warn('[柏宝绘] 楼层按钮找不到对应消息', { mesid: button.closest('.mes')?.getAttribute('mesid') });
-    toastr.warning('找不到这一楼的消息，请刷新页面后重试', '柏宝绘');
+    console.warn('[虎哩繪] 樓層按鈕找不到對應訊息', { mesid: button.closest('.mes')?.getAttribute('mesid') });
+    toastr.warning('找不到這一樓的訊息，請重新整理頁面後重試', '虎哩繪');
     return;
   }
   if (!settings.enabled) {
-    toastr.warning('柏宝绘已停用，请先在插件设置里开启', '柏宝绘');
+    toastr.warning('虎哩繪已停用，請先在外掛設定裡開啟', '虎哩繪');
     return;
-  }
-
-  const hasTags = hasImageTagTrace(message.mes ?? '');
-  if (hasTags) {
-    const ok = await confirmDialog({
-      title: '重新生成 tag',
-      text: '本楼已有生图 tag。重新生成会先删除原 tag 再写入新的；已生成的图片保留在卡片历史里，不会丢失。',
-      confirmText: '重新生成',
-    });
-    if (!ok) return;
   }
 
   setRunning(button, true);
   try {
-    await requestFloorTags(floor, { replace: hasTags });
+    await requestFloorTags(floor);
   } finally {
-    // 运行期间 ST 可能已重渲染移除本按钮;对脱离 DOM 的元素改 class 是安全无操作
+    // 執行期間 ST 可能已重渲染移除本按鈕;對脫離 DOM 的元素改 class 是安全無操作
     setRunning(button, false);
   }
 }
 
 function createButton(): HTMLDivElement {
   const button = document.createElement('div');
-  // mes_button 与 .extraMesButtons 里的 ST 原生扩展按钮同类(menu_button 是通用菜单按钮,样式不同)
+  // mes_button 與 .extraMesButtons 裡的 ST 原生擴充套件按鈕同類(menu_button 是通用選單按鈕,樣式不同)
   button.className = `mes_button fa-solid ${ICON_CLASS} ${BUTTON_CLASS}`;
-  button.title = '生成生图 tag（已有 tag 时重新生成）';
+  button.title = '生成一張生圖 tag（每按一次追加一張）';
   button.setAttribute('role', 'button');
   button.setAttribute('tabindex', '0');
 
@@ -93,24 +80,24 @@ function createButton(): HTMLDivElement {
 }
 
 /**
- * 按钮与「谁该有按钮」对账(幂等、双向):该有的补,该撤的撤。
+ * 按鈕與「誰該有按鈕」對賬(冪等、雙向):該有的補,該撤的撤。
  *
- * 双向是必需的——只补不撤时,判据变了(排除名单里加了这个角色、/role 把楼改成系统楼)
- * 也只有等整段重渲染才生效,期间留着的按钮点了只会撞上 runner 的兜底闸门。
- * 正在跑的那颗不撤:它的 spinner 与 running 标记要留到本次请求收尾。
+ * 雙向是必需的——只補不撤時,判據變了(排除名單裡加了這個角色、/role 把樓改成系統樓)
+ * 也只有等整段重渲染才生效,期間留著的按鈕點了只會撞上 runner 的兜底閘門。
+ * 正在跑的那顆不撤:它的 spinner 與 running 標記要留到本次請求收尾。
  */
 function syncButtons(): void {
   const chat = getContext()?.chat;
-  // 上下文还没就绪:什么都别做——此时「谁该有」无从判断,照着空 chat 对账会把按钮全撤掉
+  // 上下文還沒就緒:什麼都別做——此時「誰該有」無從判斷,照著空 chat 對賬會把按鈕全撤掉
   if (!chat) return;
-  // 排除角色:该聊天整条自动 tag 链路停用(与柏宝书同名单),手动按钮一并撤掉
+  // 排除角色:該聊天整條自動 tag 鏈路停用,手動按鈕一併撤掉
   const excluded = isCurrentChatExcluded();
   for (const mesEl of document.querySelectorAll<HTMLElement>('#chat .mes')) {
     const extra = mesEl.querySelector('.extraMesButtons');
     if (!extra) continue;
     const floor = Number(mesEl.getAttribute('mesid'));
-    // 判据吃 chat 里的消息对象,不吃 DOM 的 is_system 属性(见文件头注释)。
-    // 顺带的好处:/hide 只翻属性、不动 DOM 树,本来就触发不了 observer,现在也无需触发。
+    // 判據吃 chat 裡的訊息物件,不吃 DOM 的 is_system 屬性(見檔案頭註釋)。
+    // 順帶的好處:/hide 只翻屬性、不動 DOM 樹,本來就觸發不了 observer,現在也無需觸發。
     const wanted = !excluded && Number.isInteger(floor) && isAiStoryMessage(chat[floor]);
     const existing = extra.querySelector<HTMLElement>(`.${BUTTON_CLASS}`);
     if (wanted && !existing) extra.appendChild(createButton());
@@ -118,11 +105,11 @@ function syncButtons(): void {
   }
 }
 
-/** 绑定楼层按钮注入(幂等)。#chat 在 ST 静态模板里,绑定时不存在则说明环境异常,直接放弃。 */
+/** 綁定樓層按鈕注入(冪等)。#chat 在 ST 靜態模板裡,綁定時不存在則說明環境異常,直接放棄。 */
 export function bindTagActionButtons(): boolean {
   if (bound) return true;
-  // 观察器与卡片自愈共用一个(floor/chatObserver.ts):同一棵树别观察两遍,
-  // 开销在浏览器收集 MutationRecord 那一侧,不在回调侧。
+  // 觀察器與卡片自愈共用一個(floor/chatObserver.ts):同一棵樹別觀察兩遍,
+  // 開銷在瀏覽器收集 MutationRecord 那一側,不在回撥側。
   if (!ensureChatObserver()) return false;
   bound = true;
   onChatMutation(syncButtons);

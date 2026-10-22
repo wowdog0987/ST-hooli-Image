@@ -1,24 +1,24 @@
 /**
- * ComfyUI 简易模式:选模型/LoRA + 填基础参数,插件把预设组装成 API 工作流。
+ * ComfyUI 簡易模式:選模型/LoRA + 填基礎引數,外掛把預設組裝成 API 工作流。
  *
- * 与自定义模式(粘贴 API JSON + %占位符%)互斥:预设二选一,出图时在
- * comfyui.ts 的 generateComfyImage 里分叉,汇合点是「拿到可提交的 JSON」,
- * 之后的排队/轮询/取消完全共用。
+ * 與自定義模式(貼上 API JSON + %佔位符%)互斥:預設二選一,出圖時在
+ * comfyui.ts 的 generateComfyImage 裡分叉,匯合點是「拿到可提交的 JSON」,
+ * 之後的排隊/輪詢/取消完全共用。
  *
- * 模板按模型架构分族,不做「一个工作流打天下」——不同架构的加载节点、
- * latent 类型、负面词支持都不一样,硬揉在一起只会处处是特例。
- * 范围刻意收敛:checkpoint 系(SD1.5/SDXL/Pony/Illustrious)、Flux、Anima(Qwen 链路)。
- * Chroma/视频系等不见实际使用的一律不做,新架构 = 在 COMFY_TEMPLATES 加一条数据 + 一个组装分支。
+ * 模板按模型架構分族,不做「一個工作流打天下」——不同架構的載入節點、
+ * latent 型別、負面詞支援都不一樣,硬揉在一起只會處處是特例。
+ * 範圍刻意收斂:checkpoint 系(SD1.5/SDXL/Pony/Illustrious)、Flux、Anima(Qwen 鏈路)。
+ * Chroma/影片系等不見實際使用的一律不做,新架構 = 在 COMFY_TEMPLATES 加一條資料 + 一個組裝分支。
  *
- * 本模块刻意不 import settings/comfyui:settings.ts 要拿这里的类型与默认值工厂,
- * comfyui.ts 要拿组装器,反向依赖会成环。错误用带中文信息的普通 Error,
+ * 本模組刻意不 import settings/comfyui:settings.ts 要拿這裡的型別與預設值工廠,
+ * comfyui.ts 要拿組裝器,反向依賴會成環。錯誤用帶中文資訊的普通 Error,
  * 由 comfyui.ts 包成 ComfyUIError。
  */
 
-/** 节点引用:[节点 id, 输出槽位]。 */
+/** 節點引用:[節點 id, 輸出槽位]。 */
 type NodeRef = [string, number];
 
-// 用 type 而非 interface:接口没有隐式索引签名,赋不进 comfyui.ts 的 ComfyWorkflow(Record<string, JsonObject>)
+// 用 type 而非 interface:介面沒有隱式索引簽名,賦不進 comfyui.ts 的 ComfyWorkflow(Record<string, JsonObject>)
 export type SimpleWorkflowNode = {
   class_type: string;
   inputs: Record<string, unknown>;
@@ -31,58 +31,58 @@ export type ComfyPresetMode = 'custom' | 'simple';
 export type ComfySimpleTemplateId = 'checkpoint' | 'flux' | 'anima';
 
 export interface ComfyLoraEntry {
-  /** LoRA 文件名(相对 models/loras)。 */
+  /** LoRA 檔名(相對 models/loras)。 */
   name: string;
-  /** 强度;checkpoint 模板同时作用于 model 与 clip,Flux/Anima 只作用于 model。 */
+  /** 強度;checkpoint 模板同時作用於 model 與 clip,Flux/Anima 只作用於 model。 */
   strength: number;
 }
 
 /**
- * 一套简易模式参数。全部字段都有默认值(normalize 保证),
- * 出图组装时只做「选没选模型/VAE/CLIP」这种存在性校验。
+ * 一套簡易模式引數。全部欄位都有預設值(normalize 保證),
+ * 出圖組裝時只做「選沒選模型/VAE/CLIP」這種存在性校驗。
  */
 export interface ComfySimpleConfig {
   template: ComfySimpleTemplateId;
-  /** checkpoint 模板 = ckpt 文件名;flux/anima = diffusion_models 文件名。 */
+  /** checkpoint 模板 = ckpt 檔名;flux/anima = diffusion_models 檔名。 */
   model: string;
-  /** flux/anima 选了 GGUF 格式的模型 → 用 UnetLoaderGGUF 加载。 */
+  /** flux/anima 選了 GGUF 格式的模型 → 用 UnetLoaderGGUF 載入。 */
   gguf: boolean;
-  /** 外置 VAE 文件名;checkpoint 模板留空 = 用模型内置 VAE,flux/anima 必填。 */
+  /** 外接 VAE 檔名;checkpoint 模板留空 = 用模型內建 VAE,flux/anima 必填。 */
   vae: string;
   /** flux: t5xxl;anima: qwen_2.5_vl;checkpoint 不用。 */
   clip1: string;
-  /** flux: clip_l;其余模板不用。 */
+  /** flux: clip_l;其餘模板不用。 */
   clip2: string;
   loras: ComfyLoraEntry[];
   steps: number;
   cfg: number;
   sampler: string;
   scheduler: string;
-  /** flux 专用:FluxGuidance 强度;1 = 跳过该节点(直连编码输出)。 */
+  /** flux 專用:FluxGuidance 強度;1 = 跳過該節點(直連編碼輸出)。 */
   guidance: number;
-  /** anima 专用:ModelSamplingAuraFlow 的 shift。 */
+  /** anima 專用:ModelSamplingAuraFlow 的 shift。 */
   shift: number;
-  /** 固定正面,拼在 AI 生成内容之前。 */
+  /** 固定正面,拼在 AI 生成內容之前。 */
   positive: string;
-  /** 固定负面,AI 动态负面追加在后。 */
+  /** 固定負面,AI 動態負面追加在後。 */
   negative: string;
 }
 
 export interface ComfyTemplateMeta {
   id: ComfySimpleTemplateId;
   label: string;
-  /** 模型字段来自哪个文件列表。 */
+  /** 模型欄位來自哪個檔案列表。 */
   modelKind: 'checkpoint' | 'unet';
   modelLabel: string;
   vaeRequired: boolean;
   vaeLabel: string;
-  /** VAE 输入框 placeholder(留空语义/推荐文件名)。 */
+  /** VAE 輸入框 placeholder(留空語義/推薦檔名)。 */
   vaePlaceholder: string;
-  /** 需要用户选择的 CLIP 文件;checkpoint 内置故为空。 */
+  /** 需要使用者選擇的 CLIP 檔案;checkpoint 內建故為空。 */
   clips: { key: 'clip1' | 'clip2'; label: string }[];
-  /** 是否有真实负面输入(Flux 负面恒空,故也不请求 AI 动态负面词)。 */
+  /** 是否有真實負面輸入(Flux 負面恆空,故也不請求 AI 動態負面詞)。 */
   supportsNegative: boolean;
-  /** 简易模式画幅默认尺寸(写入新预设的横竖尺寸)。 */
+  /** 簡易模式畫幅預設尺寸(寫入新預設的橫豎尺寸)。 */
   portraitSize: string;
   landscapeSize: string;
   defaults: {
@@ -103,7 +103,7 @@ export const COMFY_TEMPLATES: Record<ComfySimpleTemplateId, ComfyTemplateMeta> =
     modelLabel: '模型',
     vaeRequired: false,
     vaeLabel: 'VAE',
-    vaePlaceholder: '可留空,用模型内置',
+    vaePlaceholder: '可留空,用模型內建',
     clips: [],
     supportsNegative: true,
     portraitSize: '832×1216',
@@ -129,7 +129,7 @@ export const COMFY_TEMPLATES: Record<ComfySimpleTemplateId, ComfyTemplateMeta> =
   },
   anima: {
     id: 'anima',
-    label: 'Anima 系(Qwen 链路)',
+    label: 'Anima 系(Qwen 鏈路)',
     modelKind: 'unet',
     modelLabel: '模型',
     vaeRequired: true,
@@ -156,7 +156,7 @@ export function templateSupportsNegative(id: ComfySimpleTemplateId): boolean {
   return COMFY_TEMPLATES[id].supportsNegative;
 }
 
-/** 新预设的简易模式默认值:采样参数取模板推荐,其余留空待选。 */
+/** 新預設的簡易模式預設值:取樣引數取模板推薦,其餘留空待選。 */
 export function simpleDefaults(template: ComfySimpleTemplateId = 'checkpoint'): ComfySimpleConfig {
   const meta = COMFY_TEMPLATES[template];
   return {
@@ -187,7 +187,7 @@ function asText(value: unknown): string {
   return typeof value === 'string' ? value : '';
 }
 
-/** 逐字段清洗;template 非法回 checkpoint。loras 里名字为空的行保留(UI 正在编辑的空行),组装时忽略。 */
+/** 逐欄位清洗;template 非法回 checkpoint。loras 裡名字為空的行保留(UI 正在編輯的空行),組裝時忽略。 */
 export function normalizeSimpleConfig(raw: unknown): ComfySimpleConfig {
   const o = (raw ?? {}) as Partial<ComfySimpleConfig>;
   const template = isComfyTemplateId(o.template) ? o.template : 'checkpoint';
@@ -217,54 +217,54 @@ export function normalizeSimpleConfig(raw: unknown): ComfySimpleConfig {
 }
 
 /**
- * 出图前校验;返回 null = 可出图,否则是给用户看的中文原因。
- * 面板的状态药丸与组装器共用同一口径,避免「面板说有效、出图才报错」。
+ * 出圖前校驗;返回 null = 可出圖,否則是給使用者看的中文原因。
+ * 面板的狀態藥丸與組裝器共用同一口徑,避免「面板說有效、出圖才報錯」。
  */
 export function validateSimpleConfig(simple: ComfySimpleConfig): string | null {
   const meta = COMFY_TEMPLATES[simple.template] ?? COMFY_TEMPLATES.checkpoint;
-  if (!simple.model.trim()) return `请选择${meta.modelLabel}`;
-  if (meta.vaeRequired && !simple.vae.trim()) return `请选择 ${meta.vaeLabel}`;
+  if (!simple.model.trim()) return `請選擇${meta.modelLabel}`;
+  if (meta.vaeRequired && !simple.vae.trim()) return `請選擇 ${meta.vaeLabel}`;
   for (const clip of meta.clips) {
-    if (!simple[clip.key].trim()) return `请选择 ${clip.label}`;
+    if (!simple[clip.key].trim()) return `請選擇 ${clip.label}`;
   }
   return null;
 }
 
-/** 组装入参:与占位符体系同源,只是不走宏替换。 */
+/** 組裝入參:與佔位符體系同源,只是不走巨集替換。 */
 export interface SimpleGenValues {
   /** AI 生成的正向 tag。 */
   prompt: string;
-  /** AI 生成的自然语言(预设开启「生成自然语言」时才有);简易模式下优先于 tag。 */
+  /** AI 生成的自然語言(預設開啟「生成自然語言」時才有);簡易模式下優先於 tag。 */
   nl?: string;
-  /** AI 生成的动态负面 tag。 */
+  /** AI 生成的動態負面 tag。 */
   negative?: string;
   seed: number;
   width: number;
   height: number;
 }
 
-/** 逗号拼接非空片段。 */
+/** 逗號拼接非空片段。 */
 function joinParts(...parts: (string | undefined)[]): string {
   return parts.map(part => (part ?? '').trim()).filter(Boolean).join(', ');
 }
 
 /**
- * 正向 = 固定正面 + 生成内容;生成内容有 nl 优先用 nl(Flux/Anima 吃自然语言),
- * 没有才退回短 tag。开关在预设上,用户自己决定模板与开关的搭配。
+ * 正向 = 固定正面 + 生成內容;生成內容有 nl 優先用 nl(Flux/Anima 吃自然語言),
+ * 沒有才退回短 tag。開關在預設上,使用者自己決定模板與開關的搭配。
  */
 function composePositive(simple: ComfySimpleConfig, values: SimpleGenValues): string {
   return joinParts(simple.positive, (values.nl ?? '').trim() || values.prompt);
 }
 
-/** 负面 = 固定负面 + AI 动态负面追加。 */
+/** 負面 = 固定負面 + AI 動態負面追加。 */
 function composeNegative(simple: ComfySimpleConfig, values: SimpleGenValues): string {
   return joinParts(simple.negative, values.negative);
 }
 
 /**
- * LoRA 链:从底模(与 clip)出发逐个串联,返回链尾引用。
- * checkpoint 用 LoraLoader(model+clip 双头);Flux/Anima 的 LoRA 只挂在 UNet 上(LoraLoaderModelOnly)。
- * 名字为空的行是 UI 里没填完的,忽略。
+ * LoRA 鏈:從底模(與 clip)出發逐個串聯,返回鏈尾引用。
+ * checkpoint 用 LoraLoader(model+clip 雙頭);Flux/Anima 的 LoRA 只掛在 UNet 上(LoraLoaderModelOnly)。
+ * 名字為空的行是 UI 裡沒填完的,忽略。
  */
 function applyLoras(
   nodes: SimpleWorkflow,
@@ -310,7 +310,7 @@ function unetLoader(simple: ComfySimpleConfig): SimpleWorkflowNode {
 }
 
 function saveNode(images: NodeRef): SimpleWorkflowNode {
-  return { class_type: 'SaveImage', inputs: { filename_prefix: 'BaiBai', images } };
+  return { class_type: 'SaveImage', inputs: { filename_prefix: 'hooli', images } };
 }
 
 function buildCheckpointWorkflow(simple: ComfySimpleConfig, values: SimpleGenValues): SimpleWorkflow {
@@ -371,7 +371,7 @@ function buildFluxWorkflow(simple: ComfySimpleConfig, values: SimpleGenValues): 
     class_type: 'CLIPTextEncode',
     inputs: { text: composePositive(simple, values), clip: ['2', 0] },
   };
-  // Flux 是蒸馏模型:负面恒空,cfg 恒 1,guidance 走 FluxGuidance
+  // Flux 是蒸餾模型:負面恆空,cfg 恆 1,guidance 走 FluxGuidance
   nodes['5'] = { class_type: 'CLIPTextEncode', inputs: { text: '', clip: ['2', 0] } };
   let positive: NodeRef = ['4', 0];
   if (simple.guidance !== 1) {
@@ -450,15 +450,15 @@ function buildAnimaWorkflow(simple: ComfySimpleConfig, values: SimpleGenValues):
 }
 
 /**
- * 把简易模式预设组装成可提交的 API 工作流(纯函数)。
- * 先跑与面板同口径的 validateSimpleConfig;尺寸异常也在这里报
- * (自定义模式是「工作流没用 %width% 就不查尺寸」,简易模式画布节点是必建的,没有豁免)。
+ * 把簡易模式預設組裝成可提交的 API 工作流(純函式)。
+ * 先跑與面板同口徑的 validateSimpleConfig;尺寸異常也在這裡報
+ * (自定義模式是「工作流沒用 %width% 就不查尺寸」,簡易模式畫布節點是必建的,沒有豁免)。
  */
 export function buildSimpleWorkflow(simple: ComfySimpleConfig, values: SimpleGenValues): SimpleWorkflow {
   const invalid = validateSimpleConfig(simple);
   if (invalid) throw new Error(invalid);
   if (!(values.width > 0) || !(values.height > 0)) {
-    throw new Error('请在 ComfyUI 渠道页填写竖屏与横屏尺寸（如 832×1216）');
+    throw new Error('請在 ComfyUI 渠道頁填寫豎屏與橫屏尺寸（如 832×1216）');
   }
   switch (simple.template) {
     case 'flux':

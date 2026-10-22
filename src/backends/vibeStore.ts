@@ -20,8 +20,8 @@ function openLocalDb(): Promise<IDBDatabase> {
       if (!db.objectStoreNames.contains(LOCAL_STORE_NAME)) db.createObjectStore(LOCAL_STORE_NAME);
     };
     request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error ?? new Error('打开 Vibe 本地存储失败'));
-    request.onblocked = () => reject(new Error('Vibe 本地存储被其他页面占用'));
+    request.onerror = () => reject(request.error ?? new Error('開啟 Vibe 本地儲存失敗'));
+    request.onblocked = () => reject(new Error('Vibe 本地儲存被其他頁面佔用'));
   });
   return localDbPromise;
 }
@@ -31,7 +31,7 @@ async function writeLocalData(key: string, data: NaiVibeData): Promise<string> {
   await new Promise<void>((resolve, reject) => {
     const request = db.transaction(LOCAL_STORE_NAME, 'readwrite').objectStore(LOCAL_STORE_NAME).put(data, key);
     request.onsuccess = () => resolve();
-    request.onerror = () => reject(request.error ?? new Error('写入 Vibe 本地存储失败'));
+    request.onerror = () => reject(request.error ?? new Error('寫入 Vibe 本地儲存失敗'));
   });
   return `${LOCAL_PATH_PREFIX}${key}`;
 }
@@ -44,9 +44,9 @@ async function readLocalData(path: string): Promise<NaiVibeData> {
     request.onsuccess = () => {
       const data = request.result as NaiVibeData | undefined;
       if (data) resolve(data);
-      else reject(new Error('Vibe 本地数据不存在'));
+      else reject(new Error('Vibe 本地資料不存在'));
     };
-    request.onerror = () => reject(request.error ?? new Error('读取 Vibe 本地存储失败'));
+    request.onerror = () => reject(request.error ?? new Error('讀取 Vibe 本地儲存失敗'));
   });
 }
 
@@ -56,7 +56,7 @@ async function deleteLocalData(path: string): Promise<void> {
   await new Promise<void>((resolve, reject) => {
     const request = db.transaction(LOCAL_STORE_NAME, 'readwrite').objectStore(LOCAL_STORE_NAME).delete(key);
     request.onsuccess = () => resolve();
-    request.onerror = () => reject(request.error ?? new Error('删除 Vibe 本地数据失败'));
+    request.onerror = () => reject(request.error ?? new Error('刪除 Vibe 本地資料失敗'));
   });
 }
 
@@ -85,13 +85,13 @@ function dataUrlBase64(dataUrl: string): string {
 export const DEFAULT_VIBE_STRENGTH = 0.6;
 
 /**
- * Vibe 强度的唯一口径:夹到 0–1,认不出数就回落默认值。
+ * Vibe 強度的唯一口徑:夾到 0–1,認不出數就回落預設值。
  *
- * 曾经有四份各自为政的实现(设置反序列化 / .naiv4vibe 解析 / 智绘姬导入 / 面板输入),
- * 其中三份写作 `Number(v)`,而 `Number(null)` 与 `Number('')` 都是 0 ——
- * 「字段缺失」于是被静默判成「强度 0」,vibe 挂上了却对画面毫无影响,极难排查。
- * 这里只认真正的数字和能解析出数字的字符串(面板 <input> 给的是字符串),
- * 其余(null / '' / 空白串 / 布尔 / 对象)一律回落默认值。
+ * 曾經有四份各自為政的實現(設定反序列化 / .naiv4vibe 解析 / 智繪姬匯入 / 面板輸入),
+ * 其中三份寫作 `Number(v)`,而 `Number(null)` 與 `Number('')` 都是 0 ——
+ * 「欄位缺失」於是被靜默判成「強度 0」,vibe 掛上了卻對畫面毫無影響,極難排查。
+ * 這裡只認真正的數字和能解析出數字的字串(面板 <input> 給的是字串),
+ * 其餘(null / '' / 空白串 / 布林 / 物件)一律回落預設值。
  */
 export function clampVibeStrength(raw: unknown, def = DEFAULT_VIBE_STRENGTH): number {
   const value =
@@ -150,7 +150,7 @@ export async function saveVibeFiles(
     return await saveServerVibeFiles(data, current, localKey);
   } catch (error) {
     if (current) throw error;
-    console.warn('[柏宝绘] Vibe 写入 ST 文件存储失败，回退浏览器 IndexedDB:', error);
+    console.warn('[虎哩繪] Vibe 寫入 ST 檔案儲存失敗，回退瀏覽器 IndexedDB:', error);
     return { dataPath: await writeLocalData(localKey, data), thumbnailPath: '' };
   }
 }
@@ -176,16 +176,16 @@ async function saveServerVibeFiles(
 }
 
 export async function loadVibeData(vibe: Pick<NaiVibe, 'dataPath' | 'name'>): Promise<NaiVibeData> {
-  if (!vibe.dataPath) throw new Error(`Vibe「${vibe.name}」缺少数据文件`);
+  if (!vibe.dataPath) throw new Error(`Vibe「${vibe.name}」缺少資料檔案`);
   if (vibe.dataPath.startsWith(LOCAL_PATH_PREFIX)) return readLocalData(vibe.dataPath);
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
   try {
     const response = await fetch(vibe.dataPath, { signal: controller.signal });
-    if (!response.ok) throw new Error(`读取 Vibe「${vibe.name}」失败 (${response.status})`);
+    if (!response.ok) throw new Error(`讀取 Vibe「${vibe.name}」失敗 (${response.status})`);
     const data = (await response.json()) as Partial<NaiVibeData>;
     if (!data || typeof data !== 'object' || !data.encodings || typeof data.encodings !== 'object') {
-      throw new Error(`Vibe「${vibe.name}」数据格式无效`);
+      throw new Error(`Vibe「${vibe.name}」資料格式無效`);
     }
     return {
       image: typeof data.image === 'string' ? data.image : '',

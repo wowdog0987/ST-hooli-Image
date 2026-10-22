@@ -1,27 +1,31 @@
 /**
- * 正文清洗工具(与柏宝书 timeTag.ts 的 stripCustomTags 完全同口径,改动需双端同步)。
- * 名单来自共享存储(settings.excludes.customStripTags),输入时已由 sanitizeTagName 消毒,
- * 这里只负责按标签名生成「整块删除」正则并执行。
+ * 正文清洗工具。
+ *
+ * 白名單優先:訊息裡有 <content>…</content> 時只取它裡面的文字,外面的 Horae / MVU /
+ * 選項按鈕 / 狀態列等外掛標籤一律不看。沒有 <content> 的訊息(別的角色卡格式)才退回
+ * 下面的黑名單清洗。自定義清洗名單來自共享儲存(settings.excludes.customStripTags),
+ * 輸入時已由 sanitizeTagName 消毒,這裡只負責按標籤名生成「整塊刪除」正則並執行。
  */
 
-const RE_THINK_BLOCK = /<think(?:ing)?\b[\s\S]*?<\/think(?:ing)?>/gi;
-const RE_START = /<bbs_start\b[^>]*>([\s\S]*?)<\/bbs_start>/gi;
-const RE_END = /<bbs_end\b[^>]*>([\s\S]*?)<\/bbs_end>/gi;
+const RE_THINK_BLOCK = /<think(?:ing)?\b[\s\S]*?(?:<\/think(?:ing)?>|$)/gi;
+const RE_CONTENT_SHELL = /<\/?content\b[^>]*>/gi;
+/** 自閉合的自訂標籤(如狀態列外掛的 <StatusPlaceHolderImpl/>):只是佔位符,不是正文。 */
+const RE_SELF_CLOSING_TAG = /<[A-Za-z][\w:-]*(?:\s[^<>]*)?\/>/g;
 
 /**
- * 按标签名生成「整块删除」正则(含标签本身与内部内容)。tag 已由 sanitizeTagName 剔除正则元字符,
- * 拼进 RegExp 安全。边界用前瞻 (?=[\s/>]) 而非 \b —— \b 只认 ASCII 词字符,中文标签(如 <雪>)
- * 在 `雪` 与 `>` 之间无词边界会匹配失败;前瞻「标签名后须紧跟空白/斜杠/右括号」对中英文都成立,
- * 且同样防止 <snow> 误吃 <snowball> 前缀。同时删配对块与落单的自闭/单标签。
+ * 按標籤名生成「整塊刪除」正則(含標籤本身與內部內容)。tag 已由 sanitizeTagName 剔除正則元字元,
+ * 拼進 RegExp 安全。邊界用前瞻 (?=[\s/>]) 而非 \b —— \b 只認 ASCII 詞字元,中文標籤(如 <雪>)
+ * 在 `雪` 與 `>` 之間無詞邊界會匹配失敗;前瞻「標籤名後須緊跟空白/斜槓/右括號」對中英文都成立,
+ * 且同樣防止 <snow> 誤吃 <snowball> 字首。同時刪配對塊與落單的自閉/單標籤。
  */
 function blockStripRegexes(tag: string): RegExp[] {
   return [
-    new RegExp(`<${tag}(?=[\\s/>])[^>]*>[\\s\\S]*?</${tag}>`, 'gi'), // 配对块
-    new RegExp(`<\\/?${tag}(?=[\\s/>])[^>]*\\/?>`, 'gi'), // 落单的开/闭/自闭标签
+    new RegExp(`<${tag}(?=[\\s/>])[^>]*>[\\s\\S]*?</${tag}>`, 'gi'), // 配對塊
+    new RegExp(`<\\/?${tag}(?=[\\s/>])[^>]*\\/?>`, 'gi'), // 落單的開/閉/自閉標籤
   ];
 }
 
-/** 删掉用户在设置里配置的自定义标签(整块:标签 + 内部内容)。空名单则原样返回。 */
+/** 刪掉使用者在設定裡配置的自定義標籤(整塊:標籤 + 內部內容)。空名單則原樣返回。 */
 function replaceCustomTags(s: string, tags: string[], replacement: string): string {
   let out = s;
   for (const tag of tags) {
@@ -35,52 +39,50 @@ export function stripCustomTags(s: string, tags: string[]): string {
   return replaceCustomTags(s, tags, '');
 }
 
-/** 删柏宝书托管的尾部旁注块(bbs_items/bbs_vars,开/闭标签独占行配对)。 */
-function stripManagedBlock(s: string, tag: string): string {
-  const openRe = new RegExp(`^[ \\t]*<${tag}\\b[^>]*>[ \\t]*$`, 'm');
-  const closeRe = new RegExp(`^[ \\t]*</${tag}>[ \\t]*$`, 'm');
-  let out = s;
-  let open: RegExpMatchArray | null;
-  while ((open = out.match(openRe))) {
-    const start = open.index ?? 0;
-    const rest = out.slice(start + open[0].length);
-    const close = rest.match(closeRe);
-    if (!close) {
-      out = out.slice(0, start) + out.slice(start + open[0].length);
-      continue;
-    }
-    const end = start + open[0].length + (close.index ?? 0) + close[0].length;
-    out = out.slice(0, start) + out.slice(end);
+/**
+ * <content> 的內文範圍(不含標籤殼);訊息裡沒有 <content> 時返回 null,呼叫方退回黑名單清洗。
+ * 未閉合的 <content>(回覆被截斷)取到結尾。呼叫方要先遮掉思維鏈與註釋再傳進來,
+ * 免得思維鏈裡「提到」<content> 被誤認成正文起點。
+ */
+function contentInnerRanges(text: string): RemovalRange[] | null {
+  const ranges: RemovalRange[] = [];
+  const open = /<content\b[^>]*>/gi;
+  for (let match = open.exec(text); match; match = open.exec(text)) {
+    const start = match.index + match[0].length;
+    const close = /<\/content\s*>/i.exec(text.slice(start));
+    const end = close ? start + close.index : text.length;
+    ranges.push({ start, end });
+    open.lastIndex = close ? end + close[0].length : text.length;
   }
+  return ranges.length ? ranges : null;
+}
+
+/** [0, length) 減去 keep 之後剩下的區段(即要刪除的範圍)。 */
+function outsideRanges(length: number, keep: RemovalRange[]): RemovalRange[] {
+  const out: RemovalRange[] = [];
+  let cursor = 0;
+  for (const range of mergeRanges(keep)) {
+    if (range.start > cursor) out.push({ start: cursor, end: range.start });
+    cursor = Math.max(cursor, range.end);
+  }
+  if (cursor < length) out.push({ start: cursor, end: length });
   return out;
 }
 
-function stripManagedTags(s: string): string {
-  return stripManagedBlock(stripManagedBlock(s, 'bbs_items'), 'bbs_vars');
-}
-
-function clampToStoryBody(
-  mes: string,
-  tags: string[],
-  preserveImageTags: boolean,
-  noiseReplacement = '',
-): string {
-  const customTags = preserveImageTags
-    ? tags.filter(tag => tag.toLowerCase() !== 'bbi_image')
-    : tags;
+function clampToStoryBody(mes: string, tags: string[]): string {
+  // 上下文樓層只用來理解場景與持續中的狀態;舊的 hooli_image 一律移除——
+  // 角色外貌以角色庫為準,舊提示詞裡的外貌可能過時,每張還要多花數百 token。
+  const customTags = tags.concat(['hooli_image', 'UpdateVariable', 'Analysis', 'horae', 'horaeevent']);
   let s = String(mes ?? '')
-    .replace(RE_THINK_BLOCK, noiseReplacement)
-    .replace(/<!--[\s\S]+?-->/g, noiseReplacement)
-    .replace(/<horae[\s\S]*?>[\s\S]*?<\/horae[\s\S]*?>/gi, noiseReplacement);
-  s = replaceCustomTags(s, customTags, noiseReplacement);
-  s = stripManagedTags(s);
-
-  const startRe = /<bbs_start\b/gi;
-  let lastStart = -1;
-  for (let match = startRe.exec(s); match; match = startRe.exec(s)) lastStart = match.index;
-  if (lastStart >= 0) s = s.slice(lastStart);
-  const endMatch = s.match(/<\/bbs_end>/i);
-  if (endMatch?.index !== undefined) s = s.slice(0, endMatch.index + endMatch[0].length);
+    .replace(RE_THINK_BLOCK, '')
+    .replace(/<!--[\s\S]+?-->/g, '');
+  const inner = contentInnerRanges(s);
+  if (inner) s = inner.map(range => s.slice(range.start, range.end)).join('\n');
+  s = s
+    .replace(RE_CONTENT_SHELL, '')
+    .replace(RE_SELF_CLOSING_TAG, '')
+    .replace(/<horae[\s\S]*?>[\s\S]*?<\/horae[\s\S]*?>/gi, '');
+  s = replaceCustomTags(s, customTags, '');
 
   return s
     .replace(/[ \t]+\n/g, '\n')
@@ -88,11 +90,9 @@ function clampToStoryBody(
     .trim();
 }
 
-/** 历史楼层与柏宝书 cleanBody 同口径；本插件的 bbi_image 必须保留供角色外貌续接。 */
+/** 上下文樓層清洗:只留敘事正文,生圖 tag 與外掛標籤全部移除。 */
 export function cleanHistoryText(mes: string, tags: string[]): string {
-  return clampToStoryBody(mes, tags, true)
-    .replace(RE_START, (_, value) => `(起始时间:${String(value).trim()})`)
-    .replace(RE_END, (_, value) => `(结束时间:${String(value).trim()})`);
+  return clampToStoryBody(mes, tags);
 }
 
 interface RemovalRange {
@@ -107,18 +107,18 @@ interface SourceLineRange {
 }
 
 export interface TargetSegment {
-  /** 发给模型的短位置 ID。 */
+  /** 發給模型的短位置 ID。 */
   id: string;
-  /** 对应原始正文的物理行号(0-based，仅插件内部使用)。 */
+  /** 對應原始正文的物理行號(0-based，僅外掛內部使用)。 */
   sourceLine: number;
-  /** 删除噪声后的该行叙事文本。 */
+  /** 刪除噪聲後的該行敘事文本。 */
   text: string;
 }
 
 export interface PreparedTargetText {
-  /** 带段尾位置 ID 的目标正文。 */
+  /** 帶段尾位置 ID 的目標正文。 */
   promptText: string;
-  /** 位置 ID 到原始物理行的稳定映射。 */
+  /** 位置 ID 到原始物理行的穩定對映。 */
   segments: TargetSegment[];
 }
 
@@ -183,48 +183,30 @@ function retainedLineText(source: string, line: SourceLineRange, ranges: Removal
 }
 
 function targetRemovalRanges(source: string, tags: string[]): RemovalRange[] {
-  const noise: RemovalRange[] = [
+  const hidden = [
     ...rangesForRegex(source, RE_THINK_BLOCK),
     ...rangesForRegex(source, /<!--[\s\S]+?-->/g),
+  ];
+  const noise: RemovalRange[] = [
+    ...hidden,
     ...rangesForRegex(source, /<horae[\s\S]*?>[\s\S]*?<\/horae[\s\S]*?>/gi),
   ];
-  for (const tag of [...tags, 'bbs_items', 'bbs_vars']) {
+  // 白名單:有 <content> 時,它外面的一切都不是正文
+  const inner = contentInnerRanges(maskedSource(source, hidden));
+  if (inner) noise.push(...outsideRanges(source.length, inner));
+  // <content> 包的是正文本體:只刪標籤殼本身,內文保留
+  noise.push(...rangesForRegex(source, RE_CONTENT_SHELL));
+  noise.push(...rangesForRegex(source, RE_SELF_CLOSING_TAG));
+  for (const tag of [...tags, 'UpdateVariable', 'Analysis', 'horae', 'horaeevent']) {
     if (!tag) continue;
     for (const regex of blockStripRegexes(tag)) noise.push(...rangesForRegex(source, regex));
   }
-
-  const masked = maskedSource(source, noise);
-  const crop: RemovalRange[] = [];
-  const startRe = /<bbs_start\b/gi;
-  let lastStart = -1;
-  for (let match = startRe.exec(masked); match; match = startRe.exec(masked)) lastStart = match.index;
-  if (lastStart >= 0) crop.push({ start: 0, end: lastStart });
-
-  const bodyStart = Math.max(0, lastStart);
-  const endMatch = masked.slice(bodyStart).match(/<\/bbs_end>/i);
-  const bodyEnd = endMatch?.index === undefined
-    ? source.length
-    : bodyStart + endMatch.index + endMatch[0].length;
-  if (bodyEnd < source.length) crop.push({ start: bodyEnd, end: source.length });
-
-  // Match BaiBai Book's order: crop to the story time range before removing time tags.
-  // A format example before the story must not pair with the real closing tag and swallow the prose.
-  const timeTags: RemovalRange[] = [];
-  const body = masked.slice(bodyStart, bodyEnd);
-  for (const tag of ['bbs_start', 'bbs_end']) {
-    for (const regex of blockStripRegexes(tag)) {
-      timeTags.push(...rangesForRegex(body, regex).map(range => ({
-        start: bodyStart + range.start,
-        end: bodyStart + range.end,
-      })));
-    }
-  }
-  return mergeRanges([...noise, ...crop, ...timeTags]);
+  return mergeRanges(noise);
 }
 
 /**
- * 目标正文删除同款噪声和时间标签，并只给保留下来的非空物理行追加段尾位置 ID。
- * 每个 ID 直接保存原始 sourceLine，不再要求模型复制原文，也不依赖清洗后文本反查。
+ * 目標正文刪除同款噪聲，並只給保留下來的非空物理行追加段尾位置 ID。
+ * 每個 ID 直接儲存原始 sourceLine，不再要求模型複製原文，也不依賴清洗後文本反查。
  */
 export function prepareTargetText(mes: string, tags: string[]): PreparedTargetText {
   const source = String(mes ?? '');
@@ -239,7 +221,7 @@ export function prepareTargetText(mes: string, tags: string[]): PreparedTargetTe
   };
 }
 
-/** 不带位置标记的目标清洗结果，供调试/测试查看。 */
+/** 不帶位置標記的目標清洗結果，供除錯/測試檢視。 */
 export function cleanTargetText(mes: string, tags: string[]): string {
   return prepareTargetText(mes, tags).segments.map(segment => segment.text).join('\n\n');
 }

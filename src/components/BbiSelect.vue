@@ -4,21 +4,21 @@ import { modalHost } from '@/state/ui';
 import { computed, onBeforeUnmount, ref } from 'vue';
 
 /**
- * 自绘下拉选择(替代原生 <select>):触发器与弹出菜单都跟随 --bbi-* 主题,
- * 选项可带图标;与设置页的 bbi-select-row 行布局配套。
+ * 自繪下拉選擇(替代原生 <select>):觸發器與彈出選單都跟隨 --bbi-* 主題,
+ * 選項可帶圖示;與設定頁的 bbi-select-row 行佈局配套。
  *
- * 菜单为什么 Teleport 到 modalHost 而不是就地绝对定位:
- * 设置项都在 Collapsible(overflow:hidden)与 .bbi-body 滚动容器里,就地定位会被裁剪
- * (柏宝书踩过同款坑)。modalHost 是 .bbi-root 直接子级,菜单用视口级 fixed 定位,
- * 由触发器的 getBoundingClientRect 推算,下方空间不足时向上翻。
- * 窗口元素平时无 transform(仅移动端拖动抽屉时临时有),fixed 相对视口成立。
+ * 選單為什麼 Teleport 到 modalHost 而不是就地絕對定位:
+ * 設定項都在 Collapsible(overflow:hidden)與 .bbi-body 滾動容器裡,就地定位會被裁剪。
+ * modalHost 是 .bbi-root 直接子級,選單用視口級 fixed 定位,
+ * 由觸發器的 getBoundingClientRect 推算,下方空間不足時向上翻。
+ * 視窗元素平時無 transform(僅移動端拖動抽屜時臨時有),fixed 相對視口成立。
  *
- * 交互:点外部 / Esc / 滚动 / 缩放关闭;↑↓ 移动高亮,Enter/Space 选中,Home/End 跳首尾。
+ * 互動:點外部 / Esc / 滾動 / 縮放關閉;↑↓ 移動高亮,Enter/Space 選中,Home/End 跳首尾。
  */
 const props = defineProps<{
   modelValue: string;
   options: { value: string; label: string; icon?: string }[];
-  /** 无障碍名称(行标题是纯文本 span,与控件无 label 关联,靠它补上) */
+  /** 無障礙名稱(行標題是純文本 span,與控制元件無 label 關聯,靠它補上) */
   ariaLabel?: string;
 }>();
 const emit = defineEmits<{ (e: 'update:modelValue', v: string): void }>();
@@ -27,7 +27,7 @@ const open = ref(false);
 const trigger = ref<HTMLElement | null>(null);
 const menu = ref<HTMLElement | null>(null);
 const menuStyle = ref<Record<string, string>>({});
-/** 键盘/悬停高亮项索引 */
+/** 鍵盤/懸停高亮項索引 */
 const activeIndex = ref(0);
 
 const current = computed(() => props.options.find(o => o.value === props.modelValue) ?? null);
@@ -40,7 +40,7 @@ function openMenu() {
   const el = trigger.value;
   if (!el || open.value) return;
   const rect = el.getBoundingClientRect();
-  // 估算菜单高度决定朝向:下方不够且上方更宽裕就向上翻
+  // 估算選單高度決定朝向:下方不夠且上方更寬裕就向上翻
   const estimated = Math.min(MENU_MAX_HEIGHT, props.options.length * 34 + 10);
   const below = window.innerHeight - rect.bottom - MENU_GAP - VIEWPORT_MARGIN;
   const upward = below < estimated && rect.top - VIEWPORT_MARGIN > below;
@@ -60,8 +60,8 @@ function openMenu() {
   open.value = true;
   document.addEventListener('mousedown', onDocMousedown, true);
   document.addEventListener('keydown', onDocKeydown, true);
-  // 菜单是视口级 fixed,不随内容滚动;滚动/缩放时直接关掉,比重算位置干净。
-  // (菜单最高 240px、选项就几个,自身几乎不会出现内部滚动,故不排除菜单内滚动。)
+  // 選單是視口級 fixed,不隨內容滾動;滾動/縮放時直接關掉,比重算位置乾淨。
+  // (選單最高 240px、選項就幾個,自身幾乎不會出現內部滾動,故不排除選單內滾動。)
   document.addEventListener('scroll', closeOnViewportChange, true);
   window.addEventListener('resize', closeOnViewportChange);
 }
@@ -91,7 +91,7 @@ function pick(option: { value: string }) {
 }
 
 function onDocMousedown(event: MouseEvent) {
-  // composedPath 穿透 shadow root;点到触发器或菜单内部都不算外部
+  // composedPath 穿透 shadow root;點到觸發器或選單內部都不算外部
   const path = event.composedPath();
   if (trigger.value && path.includes(trigger.value)) return;
   if (menu.value && path.includes(menu.value)) return;
@@ -108,7 +108,7 @@ function onDocKeydown(event: KeyboardEvent) {
   if (!open.value) return;
   const count = props.options.length;
   if (event.key === 'Escape') {
-    // 捕获阶段拦截,只关菜单,别触发窗口级 Esc(关整个面板)
+    // 捕獲階段攔截,只關選單,別觸發視窗級 Esc(關整個面板)
     event.preventDefault();
     event.stopPropagation();
     closeMenu(true);
@@ -128,7 +128,7 @@ function onDocKeydown(event: KeyboardEvent) {
   }
 }
 
-/** 原生 select 习惯:收起态按 ↑/↓ 直接展开 */
+/** 原生 select 習慣:收起態按 ↑/↓ 直接展開 */
 function onTriggerKeydown(event: KeyboardEvent) {
   if (open.value) return;
   if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
@@ -141,8 +141,8 @@ onBeforeUnmount(() => closeMenu());
 </script>
 
 <template>
-  <!-- 根类名不能叫 bbi-select:base.css 里那个类是给美化原生 <select> 用的,
-       带背景图三角 + padding-right,撞上会在触发器右边多画一个三角 -->
+  <!-- 根類名不能叫 bbi-select:base.css 裡那個類是給美化原生 <select> 用的,
+       帶背景圖三角 + padding-right,撞上會在觸發器右邊多畫一個三角 -->
   <div class="bbi-select-box">
     <button
       ref="trigger"
@@ -238,13 +238,13 @@ onBeforeUnmount(() => closeMenu());
   transform: rotate(180deg);
 }
 
-/* 菜单 Teleport 到 modalHost(scoped 样式在同 shadow root 内照常生效) */
+/* 選單 Teleport 到 modalHost(scoped 樣式在同 shadow root 內照常生效) */
 .bbi-select-menu {
   position: fixed;
-  /* 10003:高于普通弹窗遮罩(10001)与叠加层遮罩(10002)。
-     本组件现在也用在弹窗内部(渠道弹窗的「思考强度」),菜单与遮罩会同时存在;
-     同级时靠「后插入者胜出」能侥幸盖住,但删除确认那类 -top 遮罩(10002)会反压菜单,
-     故显式抬高,不依赖插入顺序。 */
+  /* 10003:高於普通彈窗遮罩(10001)與疊加層遮罩(10002)。
+     本元件現在也用在彈窗內部(渠道彈窗的「思考強度」),選單與遮罩會同時存在;
+     同級時靠「後插入者勝出」能僥倖蓋住,但刪除確認那類 -top 遮罩(10002)會反壓選單,
+     故顯式抬高,不依賴插入順序。 */
   z-index: 10003;
   margin: 0;
   padding: 4px;

@@ -4,32 +4,32 @@ import { openPanel, ui } from '@/state/ui';
 import { computed, onMounted, onUnmounted, reactive, ref } from 'vue';
 
 /**
- * 悬浮球 —— 柏宝绘伸进宿主页面的「书签坠」。
+ * 懸浮球 —— 虎哩繪伸進宿主頁面的「書籤墜」。
  *
- * 形态:竖向缎带 + 底部燕尾缺口(clip-path),呼应品牌的 bookmark 图标;自定义图片也被
- * 切成同一书签轮廓,任意图都收进统一形状(这是与「又一个圆 fab」拉开差距的签名手法)。
+ * 形態:豎向緞帶 + 底部燕尾缺口(clip-path),呼應品牌的 bookmark 圖示;自定義圖片也被
+ * 切成同一書籤輪廓,任意圖都收進統一形狀(這是與「又一個圓 fab」拉開差距的簽名手法)。
  *
- * 行为(按用户要求):自由拖动 —— 拖到屏幕中间就停在中间;拖到接近左/右边缘才吸附贴边。
- * 贴边时半隐于边缘(只露一窄条),hover/聚焦/触摸才整条滑出;停在中间则常显。
+ * 行為(按使用者要求):自由拖動 —— 拖到螢幕中間就停在中間;拖到接近左/右邊緣才吸附貼邊。
+ * 貼邊時半隱於邊緣(只露一窄條),hover/聚焦/觸控才整條滑出;停在中間則常顯。
  *
- * 位置存本机 localStorage(纯视觉态、各设备屏幕尺寸不同,同步反而会跑到屏幕外)。
- * 开关与自定义图标(ui.orbImage,服务器路径)跨设备同步,由设置承载。
+ * 位置存本機 localStorage(純視覺態、各裝置螢幕尺寸不同,同步反而會跑到螢幕外)。
+ * 開關與自定義圖示(ui.orbImage,伺服器路徑)跨裝置同步,由設定承載。
  */
 
-// 尺寸随形状 + 用户基准尺寸(ui.orbSize):书签按 0.78 宽高比(竖长方),圆/方等边正方。
-// 拖动/吸附计算与内联尺寸都读它。
+// 尺寸隨形狀 + 使用者基準尺寸(ui.orbSize):書籤按 0.78 寬高比(豎長方),圓/方等邊正方。
+// 拖動/吸附計算與內聯尺寸都讀它。
 const orbW = computed(() => (ui.orbShape === 'bookmark' ? Math.round(ui.orbSize * 0.78) : ui.orbSize));
 const orbH = computed(() => ui.orbSize);
-const SNAP_ZONE = 56; // 松手时距左/右边缘 ≤ 此值即吸附贴边
-const CLICK_SLOP = 6; // 位移 < 此值视为点击而非拖动
+const SNAP_ZONE = 56; // 鬆手時距左/右邊緣 ≤ 此值即吸附貼邊
+const CLICK_SLOP = 6; // 位移 < 此值視為點選而非拖動
 const POS_KEY = 'bbi.orb.pos.v1';
 
 type Dock = 'left' | 'right' | 'none';
 interface OrbPos {
   dock: Dock;
-  /** 贴边时无意义;free 时为左上角 x(px) */
+  /** 貼邊時無意義;free 時為左上角 x(px) */
   x: number;
-  /** 左上角 y(px),三种状态都用 */
+  /** 左上角 y(px),三種狀態都用 */
   y: number;
 }
 
@@ -45,19 +45,19 @@ function loadPos(): OrbPos {
   } catch {
     /* ignore */
   }
-  // 默认:右侧贴边、纵向居中偏下
+  // 預設:右側貼邊、縱向居中偏下
   return { dock: 'right', x: 0, y: Math.round(window.innerHeight * 0.6) };
 }
 
 const pos = reactive<OrbPos>(loadPos());
 const dragging = ref(false);
-const awake = ref(false); // hover/聚焦/拖动 → 贴边态整条滑出
+const awake = ref(false); // hover/聚焦/拖動 → 貼邊態整條滑出
 let activePointer: number | null = null;
 let startX = 0;
 let startY = 0;
-let moved = 0; // 累计位移,用于点击/拖动判定
+let moved = 0; // 累計位移,用於點選/拖動判定
 
-// 进入视口后把坐标夹进可视范围(换了更小的屏幕/旋转后不至于跑出去)
+// 進入視口後把座標夾進可視範圍(換了更小的螢幕/旋轉後不至於跑出去)
 function clampToViewport(): void {
   const maxY = Math.max(0, window.innerHeight - orbH.value);
   pos.y = Math.min(Math.max(0, pos.y), maxY);
@@ -75,20 +75,20 @@ function savePos(): void {
   }
 }
 
-// —— 定位样式:贴边用 left/right 锚定 + translateX 控制隐/现;free 用绝对 x/y ——
+// —— 定位樣式:貼邊用 left/right 錨定 + translateX 控制隱/現;free 用絕對 x/y ——
 const orbStyle = computed(() => {
   const base: Record<string, string> = {
     top: `${pos.y}px`,
     width: `${orbW.value}px`,
     height: `${orbH.value}px`,
-    // 静止不透明度走 CSS 变量,唤起/拖动态由类覆盖回全显
+    // 靜止不透明度走 CSS 變數,喚起/拖動態由類覆蓋回全顯
     '--orb-rest-opacity': String(Math.min(100, Math.max(20, ui.orbOpacity)) / 100),
-    // 图标字号随基准尺寸缩放(原 48 球 ≈ 22px),保持图标与球体比例协调
+    // 圖示字號隨基準尺寸縮放(原 48 球 ≈ 22px),保持圖示與球體比例協調
     '--orb-icon-size': `${Math.round(ui.orbSize * 0.46)}px`,
   };
   if (pos.dock === 'left') {
     base.left = '0px';
-    // 静止半隐(露 ~40%);拖动/唤起时整条滑出
+    // 靜止半隱(露 ~40%);拖動/喚起時整條滑出
     base.transform = dragging.value || awake.value ? 'translateX(0)' : 'translateX(-58%)';
   } else if (pos.dock === 'right') {
     base.right = '0px';
@@ -102,14 +102,14 @@ const orbStyle = computed(() => {
 
 const orbImage = computed(() => ui.orbImage.trim());
 
-// —— 拖动 ——
+// —— 拖動 ——
 function onDown(e: PointerEvent) {
   activePointer = e.pointerId;
   dragging.value = true;
   moved = 0;
   startX = e.clientX;
   startY = e.clientY;
-  // 记录手指相对左上角的抓取点,拖动时保持
+  // 記錄手指相對左上角的抓取點,拖動時保持
   grabDX = e.clientX - currentLeft();
   grabDY = e.clientY - pos.y;
   (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
@@ -118,7 +118,7 @@ function onDown(e: PointerEvent) {
 let grabDX = 0;
 let grabDY = 0;
 
-/** 当前左上角的实际 x(贴边态由 right/translate 折算成绝对像素,供拖动起步用) */
+/** 當前左上角的實際 x(貼邊態由 right/translate 折算成絕對畫素,供拖動起步用) */
 function currentLeft(): number {
   if (pos.dock === 'right') return window.innerWidth - orbW.value;
   if (pos.dock === 'left') return 0;
@@ -128,7 +128,7 @@ function currentLeft(): number {
 function onMove(e: PointerEvent) {
   if (!dragging.value || e.pointerId !== activePointer) return;
   moved = Math.max(moved, Math.abs(e.clientX - startX) + Math.abs(e.clientY - startY));
-  // 拖动中一律切 free 跟手(整条可见)
+  // 拖動中一律切 free 跟手(整條可見)
   pos.dock = 'none';
   pos.x = e.clientX - grabDX;
   pos.y = e.clientY - grabDY;
@@ -141,12 +141,12 @@ function onUp(e: PointerEvent) {
   activePointer = null;
 
   if (moved < CLICK_SLOP) {
-    // 视为点击 → 打开柏宝绘(贴边态保持)
+    // 視為點選 → 開啟虎哩繪(貼邊態保持)
     openPanel();
     return;
   }
 
-  // 松手吸附判定:靠近左/右边缘才贴边,否则停在原地(中间)
+  // 鬆手吸附判定:靠近左/右邊緣才貼邊,否則停在原地(中間)
   const left = pos.x;
   const right = window.innerWidth - (pos.x + orbW.value);
   if (left <= SNAP_ZONE) pos.dock = 'left';
@@ -156,7 +156,7 @@ function onUp(e: PointerEvent) {
   savePos();
 }
 
-// —— 键盘可达 ——
+// —— 鍵盤可達 ——
 function onKey(e: KeyboardEvent) {
   if (e.key === 'Enter' || e.key === ' ') {
     e.preventDefault();
@@ -182,7 +182,7 @@ onUnmounted(() => window.removeEventListener('resize', onResize));
     :style="orbStyle"
     role="button"
     tabindex="0"
-    aria-label="打开柏宝绘"
+    aria-label="開啟虎哩繪"
     @pointerdown="onDown"
     @pointermove="onMove"
     @pointerup="onUp"
@@ -210,7 +210,7 @@ onUnmounted(() => window.removeEventListener('resize', onResize));
   cursor: grab;
   touch-action: none;
   user-select: none;
-  /* drop-shadow 对 clip-path(书签)与 border-radius(圆/方)都跟随轮廓,统一用它 */
+  /* drop-shadow 對 clip-path(書籤)與 border-radius(圓/方)都跟隨輪廓,統一用它 */
   filter: drop-shadow(0 6px 14px oklch(0 0 0 / 0.28));
   opacity: var(--orb-rest-opacity, 0.62);
   transition:
@@ -218,12 +218,12 @@ onUnmounted(() => window.removeEventListener('resize', onResize));
     opacity var(--bbi-dur) var(--bbi-ease);
 }
 
-/* —— 形状 —— */
-/* 书签:缎带轮廓 + 底部燕尾缺口。clip-path 天然裁切自定义图。 */
+/* —— 形狀 —— */
+/* 書籤:緞帶輪廓 + 底部燕尾缺口。clip-path 天然裁切自定義圖。 */
 .bbi-orb.shape-bookmark {
   clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 78%, 0 100%);
 }
-/* 圆 / 方:border-radius + overflow 裁切自定义图 */
+/* 圓 / 方:border-radius + overflow 裁切自定義圖 */
 .bbi-orb.shape-circle {
   border-radius: 999px;
   overflow: hidden;
@@ -233,7 +233,7 @@ onUnmounted(() => window.removeEventListener('resize', onResize));
   overflow: hidden;
 }
 
-/* 唤起(hover/聚焦/拖动)或停在中间(free) → 全显 */
+/* 喚起(hover/聚焦/拖動)或停在中間(free) → 全顯 */
 .bbi-orb:hover,
 .bbi-orb:focus-visible,
 .bbi-orb.is-dragging {
@@ -251,7 +251,7 @@ onUnmounted(() => window.removeEventListener('resize', onResize));
   font-size: var(--orb-icon-size, 22px);
   pointer-events: none;
 }
-/* 书签:图标上移,避开底部燕尾缺口(圆/方无缺口,居中即可) */
+/* 書籤:圖示上移,避開底部燕尾缺口(圓/方無缺口,居中即可) */
 .bbi-orb.shape-bookmark .bbi-orb-icon {
   margin-bottom: 6px;
 }

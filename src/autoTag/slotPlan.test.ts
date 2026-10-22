@@ -8,7 +8,7 @@ function tag(text: string, nl = ''): string {
 }
 
 describe('buildSlotTaskNote', () => {
-  it('说明只重写第 N 张、画面不变,并要求恰好 1 张', () => {
+  it('說明只重寫第 N 張、畫面不變,並要求恰好 1 張', () => {
     const source = [
       `正文`,
       tag('1girl, classroom'),
@@ -16,74 +16,74 @@ describe('buildSlotTaskNote', () => {
       tag('cat, windowsill'),
     ].join('\n');
     const note = buildSlotTaskNote(source, 1);
-    expect(note).toContain('【本次只重写第 2 张的提示词】');
-    expect(note).toContain('不要另选画面');
-    expect(note).toContain('images 数组必须恰好返回 1 项');
+    expect(note).toContain('【本次只重寫第 2 張的提示詞】');
+    expect(note).toContain('不要另選畫面');
+    expect(note).toContain('images 陣列必須恰好返回 1 項');
   });
 
   /**
-   * 这条是本功能的命门:写回侧按 seq 原位替换、根本不看模型返回的 position,
-   * 所以「换不换画面」完全由这段措辞决定。旧版写的是「另选一个与它们明显不同的
-   * 瞬间」,导致按钮写着「重写提示词」、模型收到的却是「换个画面」。
+   * 這條是本功能的命門:寫回側按 seq 原位替換、根本不看模型返回的 position,
+   * 所以「換不換畫面」完全由這段措辭決定。舊版寫的是「另選一個與它們明顯不同的
+   * 瞬間」,導致按鈕寫著「重寫提示詞」、模型收到的卻是「換個畫面」。
    *
-   * 注意只能锁**祈使**口径:「不要另选画面」是禁令,含「另选」二字却正是我们要的,
-   * 所以不能简单断言不含「另选」。
+   * 注意只能鎖**祈使**口徑:「不要另選畫面」是禁令,含「另選」二字卻正是我們要的,
+   * 所以不能簡單斷言不含「另選」。
    */
-  it('绝不能出现让模型另选画面的祈使措辞', () => {
+  it('絕不能出現讓模型另選畫面的祈使措辭', () => {
     const note = buildSlotTaskNote([tag('1girl, classroom'), tag('1boy, rooftop')].join('\n'), 0);
-    expect(note).not.toContain('请为这一张另选');
-    expect(note).not.toContain('明显不同的瞬间');
-    expect(note).not.toContain('重选');
-    // 禁令必须在场
-    expect(note).toContain('不要另选画面');
+    expect(note).not.toContain('請為這一張另選');
+    expect(note).not.toContain('明顯不同的瞬間');
+    expect(note).not.toContain('重選');
+    // 禁令必須在場
+    expect(note).toContain('不要另選畫面');
   });
 
-  it('把目标槽位当前的提示词原样喂回去当锚点(不截断)', () => {
+  it('把目標槽位當前的提示詞原樣喂回去當錨點(不截斷)', () => {
     const long = `1girl, ${'detail, '.repeat(60)}classroom`;
     const note = buildSlotTaskNote([tag(long), tag('cat')].join('\n'), 0);
-    expect(note).toContain('这一张当前的提示词');
-    // 锚点是要模型逐字对照的,必须全文带上——被截断就等于让它猜画面
+    expect(note).toContain('這一張當前的提示詞');
+    // 錨點是要模型逐字對照的,必須全文帶上——被截斷就等於讓它猜畫面
     expect(note).toContain(long);
   });
 
-  it('列出其余画面时跳过目标槽位,并说明不要抢它们的画面', () => {
+  it('列出其餘畫面時跳過目標槽位,並說明不要搶它們的畫面', () => {
     const source = [tag('1girl, classroom'), tag('1boy, rooftop'), tag('cat, windowsill')].join('\n');
     const note = buildSlotTaskNote(source, 1);
-    expect(note).toContain('第 1 张：1girl, classroom');
-    expect(note).not.toContain('第 2 张：');
-    expect(note).toContain('第 3 张：cat, windowsill');
-    expect(note).toContain('不要把它们的画面抢过来');
+    expect(note).toContain('第 1 張：1girl, classroom');
+    expect(note).not.toContain('第 2 張：');
+    expect(note).toContain('第 3 張：cat, windowsill');
+    expect(note).toContain('不要把它們的畫面搶過來');
   });
 
-  it('单张楼只有说明,没有其余画面清单', () => {
+  it('單張樓只有說明,沒有其餘畫面清單', () => {
     const note = buildSlotTaskNote(tag('1girl, sunset'), 0);
-    expect(note).toContain('【本次只重写第 1 张的提示词】');
-    expect(note).not.toContain('本楼其余画面');
-    // 单张楼照样要给锚点
+    expect(note).toContain('【本次只重寫第 1 張的提示詞】');
+    expect(note).not.toContain('本樓其餘畫面');
+    // 單張樓照樣要給錨點
     expect(note).toContain('1girl, sunset');
   });
 
-  it('正文里没有 tag 时不抛错,也不编造锚点(边界容忍)', () => {
-    const note = buildSlotTaskNote('纯正文', 0);
-    expect(note).toContain('【本次只重写第 1 张的提示词】');
-    expect(note).not.toContain('本楼其余画面');
-    expect(note).not.toContain('这一张当前的提示词');
+  it('正文裡沒有 tag 時不拋錯,也不編造錨點(邊界容忍)', () => {
+    const note = buildSlotTaskNote('純正文', 0);
+    expect(note).toContain('【本次只重寫第 1 張的提示詞】');
+    expect(note).not.toContain('本樓其餘畫面');
+    expect(note).not.toContain('這一張當前的提示詞');
   });
 
-  it('其余画面摘要压成单行并截断,避免把整段提示词灌进备注', () => {
+  it('其餘畫面摘要壓成單行並截斷,避免把整段提示詞灌進備註', () => {
     const long = 'x'.repeat(400);
     const source = [tag('aaa'), tag(long)].join('\n');
-    // 目标是第 1 张,所以第 2 张走的是「其余画面」摘要口径 → 要截断
+    // 目標是第 1 張,所以第 2 張走的是「其餘畫面」摘要口徑 → 要截斷
     const note = buildSlotTaskNote(source, 0);
-    expect(note).toContain('第 2 张：');
+    expect(note).toContain('第 2 張：');
     expect(note).not.toContain(long);
     expect(note).toContain('…');
-    // tag / nl 两段之间不得带换行漏进清单(parseImageTagContent 会把 nl 内部换行折成空格,
-    // 这里锁的是段与段之间的分隔符也被压成单行)
+    // tag / nl 兩段之間不得帶換行漏進清單(parseImageTagContent 會把 nl 內部換行折成空格,
+    // 這裡鎖的是段與段之間的分隔符也被壓成單行)
     const withNl = buildSlotTaskNote(
       [tag('aaa'), tag('1girl', 'A girl.\nSecond line.')].join('\n'),
       0,
     );
-    expect(withNl).toContain('第 2 张：1girl / A girl. Second line.');
+    expect(withNl).toContain('第 2 張：1girl / A girl. Second line.');
   });
 });

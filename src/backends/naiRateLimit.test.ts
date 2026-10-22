@@ -18,7 +18,7 @@ import {
   shouldRetryNai,
 } from '@/backends/naiRateLimit';
 
-/** 与 NaiError 同形的最小替身:执行器只鸭子类型读 status / retryAfterMs。 */
+/** 與 NaiError 同形的最小替身:執行器只鴨子型別讀 status / retryAfterMs。 */
 function httpError(status: number, retryAfterMs: number | null = null): Error {
   return Object.assign(new Error(`HTTP ${status}`), { status, retryAfterMs });
 }
@@ -27,8 +27,8 @@ function abortError(): Error {
   return Object.assign(new Error('已取消'), { name: 'AbortError' });
 }
 
-describe('NAI 重试策略', () => {
-  it('408/429/5xx 可重试,501 与 4xx 配置类错误不重试', () => {
+describe('NAI 重試策略', () => {
+  it('408/429/5xx 可重試,501 與 4xx 配置類錯誤不重試', () => {
     for (const status of [408, 429, 500, 502, 503, 504, 520, 522]) {
       expect(isRetryableNaiStatus(status)).toBe(true);
     }
@@ -38,31 +38,31 @@ describe('NAI 重试策略', () => {
     expect(isRetryableNaiStatus(undefined)).toBe(false);
   });
 
-  it('用户取消一律不重试(哪怕带着可重试状态码)', () => {
+  it('使用者取消一律不重試(哪怕帶著可重試狀態碼)', () => {
     expect(isAbortError(abortError())).toBe(true);
     expect(shouldRetryNai(abortError(), 429)).toBe(false);
   });
 
-  it('无状态码时:fetch 的 TypeError 重试,自家校验错误不重试', () => {
+  it('無狀態碼時:fetch 的 TypeError 重試,自家校驗錯誤不重試', () => {
     expect(shouldRetryNai(new TypeError('Failed to fetch'), undefined)).toBe(true);
-    expect(shouldRetryNai(new Error('zip 包内没有图片文件'), undefined)).toBe(false);
+    expect(shouldRetryNai(new Error('zip 包內沒有圖片檔案'), undefined)).toBe(false);
   });
 });
 
 describe('Retry-After 解析', () => {
-  it('秒数写法', () => {
+  it('秒數寫法', () => {
     expect(parseRetryAfter('30')).toBe(30_000);
     expect(parseRetryAfter(' 5 ')).toBe(5000);
   });
 
-  it('HTTP 日期写法按当下时间算差值', () => {
+  it('HTTP 日期寫法按當下時間算差值', () => {
     const now = Date.parse('2026-08-30T00:00:00Z');
     expect(parseRetryAfter('Sun, 30 Aug 2026 00:00:20 GMT', now)).toBe(20_000);
-    // 已过期的日期夹到 0,不出现负等待
+    // 已過期的日期夾到 0,不出現負等待
     expect(parseRetryAfter('Sun, 30 Aug 2026 00:00:00 GMT', now + 5000)).toBe(0);
   });
 
-  it('空值/垃圾值 → null;超长值夹到 60s 上限', () => {
+  it('空值/垃圾值 → null;超長值夾到 60s 上限', () => {
     expect(parseRetryAfter(null)).toBeNull();
     expect(parseRetryAfter('')).toBeNull();
     expect(parseRetryAfter('soon')).toBeNull();
@@ -70,8 +70,8 @@ describe('Retry-After 解析', () => {
   });
 });
 
-describe('退避时长', () => {
-  it('指数增长,抖动落在 50%–100% 区间', () => {
+describe('退避時長', () => {
+  it('指數增長,抖動落在 50%–100% 區間', () => {
     expect(retryDelayMs(1, null, () => 0)).toBe(1000);
     expect(retryDelayMs(1, null, () => 1)).toBe(2000);
     expect(retryDelayMs(2, null, () => 0)).toBe(2000);
@@ -79,19 +79,19 @@ describe('退避时长', () => {
     expect(retryDelayMs(3, null, () => 0)).toBe(4000);
   });
 
-  it('Retry-After 当下界:比退避长时以它为准', () => {
+  it('Retry-After 當下界:比退避長時以它為準', () => {
     expect(retryDelayMs(1, 30_000, () => 0)).toBe(30_000);
-    // 比退避短则不削弱退避
+    // 比退避短則不削弱退避
     expect(retryDelayMs(3, 1000, () => 1)).toBe(8000);
   });
 
-  it('单次等待不超过 60s', () => {
+  it('單次等待不超過 60s', () => {
     expect(retryDelayMs(10, null, () => 1)).toBe(60_000);
     expect(retryDelayMs(1, 999_999, () => 1)).toBe(60_000);
   });
 });
 
-describe('全局节奏状态', () => {
+describe('全域性節奏狀態', () => {
   beforeEach(() => {
     resetNaiPacing();
     setNaiMinInterval(NAI_MIN_INTERVAL_MS);
@@ -106,47 +106,47 @@ describe('全局节奏状态', () => {
     expect(naiPacingDelayMs(1000)).toBe(0);
   });
 
-  it('刚发过请求 → 等到最小间隔满', () => {
+  it('剛發過請求 → 等到最小間隔滿', () => {
     noteNaiRequestStart(1000);
     expect(naiPacingDelayMs(1000)).toBe(NAI_MIN_INTERVAL_MS);
     expect(naiPacingDelayMs(1000 + NAI_MIN_INTERVAL_MS - 200)).toBe(200);
     expect(naiPacingDelayMs(1000 + NAI_MIN_INTERVAL_MS)).toBe(0);
   });
 
-  it('429 无 Retry-After → 默认冷却', () => {
+  it('429 無 Retry-After → 預設冷卻', () => {
     noteNaiRateLimited(null, 1000);
     expect(naiCooldownRemainingMs(1000)).toBe(NAI_RATE_LIMIT_COOLDOWN_MS);
     expect(naiPacingDelayMs(1000)).toBe(NAI_RATE_LIMIT_COOLDOWN_MS);
   });
 
-  it('429 带 Retry-After → 按对方说的等', () => {
+  it('429 帶 Retry-After → 按對方說的等', () => {
     noteNaiRateLimited(40_000, 1000);
     expect(naiCooldownRemainingMs(1000)).toBe(40_000);
   });
 
-  it('冷却只延后不提前:后来的短冷却冲不掉前面的长冷却', () => {
+  it('冷卻只延後不提前:後來的短冷卻衝不掉前面的長冷卻', () => {
     noteNaiRateLimited(40_000, 1000);
     noteNaiRateLimited(2000, 1500);
     expect(naiCooldownRemainingMs(1000)).toBe(40_000);
   });
 
-  it('Retry-After: 0 也要刹一下(下界 1s),不然「立刻重来」会滚成连发', () => {
+  it('Retry-After: 0 也要剎一下(下界 1s),不然「立刻重來」會滾成連發', () => {
     noteNaiRateLimited(0, 1000);
     expect(naiCooldownRemainingMs(1000)).toBe(1000);
   });
 
-  it('冷却上限 60s:对方给个离谱的 Retry-After 也不会把卡片挂死', () => {
+  it('冷卻上限 60s:對方給個離譜的 Retry-After 也不會把卡片掛死', () => {
     noteNaiRateLimited(999_999, 1000);
     expect(naiCooldownRemainingMs(1000)).toBe(60_000);
   });
 
-  it('冷却与最小间隔取大值', () => {
+  it('冷卻與最小間隔取大值', () => {
     noteNaiRequestStart(1000);
     noteNaiRateLimited(30_000, 1000);
     expect(naiPacingDelayMs(1000)).toBe(30_000);
   });
 
-  it('复位清空冷却与间隔基准', () => {
+  it('復位清空冷卻與間隔基準', () => {
     noteNaiRequestStart(1000);
     noteNaiRateLimited(30_000, 1000);
     resetNaiPacing();
@@ -154,8 +154,8 @@ describe('全局节奏状态', () => {
   });
 });
 
-describe('重试执行器', () => {
-  /** 记下每次等待时长但不真睡。 */
+describe('重試執行器', () => {
+  /** 記下每次等待時長但不真睡。 */
   function fakeDelay() {
     const waits: number[] = [];
     return {
@@ -178,7 +178,7 @@ describe('重试执行器', () => {
     vi.restoreAllMocks();
   });
 
-  it('首发成功不重试,不产生等待', async () => {
+  it('首發成功不重試,不產生等待', async () => {
     const { waits, delay } = fakeDelay();
     const run = vi.fn(async () => 'ok');
     await expect(runNaiWithRetry(run, { delay })).resolves.toBe('ok');
@@ -186,7 +186,7 @@ describe('重试执行器', () => {
     expect(waits).toEqual([]);
   });
 
-  it('429 后成功:重试一次即返回', async () => {
+  it('429 後成功:重試一次即返回', async () => {
     const { waits, delay } = fakeDelay();
     const run = vi
       .fn<() => Promise<string>>()
@@ -197,7 +197,7 @@ describe('重试执行器', () => {
     expect(waits).toHaveLength(1);
   });
 
-  it('一直 429:总共只发 NAI_MAX_ATTEMPTS 次,并抛出原错误', async () => {
+  it('一直 429:總共只發 NAI_MAX_ATTEMPTS 次,並丟擲原錯誤', async () => {
     const { waits, delay } = fakeDelay();
     const run = vi.fn(async () => {
       throw httpError(429);
@@ -207,7 +207,7 @@ describe('重试执行器', () => {
     expect(waits).toHaveLength(NAI_MAX_ATTEMPTS - 1);
   });
 
-  it('429 顺手给全局闸门上冷却', async () => {
+  it('429 順手給全域性閘門上冷卻', async () => {
     const { delay } = fakeDelay();
     const run = vi
       .fn<() => Promise<string>>()
@@ -217,7 +217,7 @@ describe('重试执行器', () => {
     expect(naiCooldownRemainingMs()).toBeGreaterThan(0);
   });
 
-  it('401 立刻抛出,一次都不重试', async () => {
+  it('401 立刻丟擲,一次都不重試', async () => {
     const { waits, delay } = fakeDelay();
     const run = vi.fn(async () => {
       throw httpError(401);
@@ -225,11 +225,11 @@ describe('重试执行器', () => {
     await expect(runNaiWithRetry(run, { delay })).rejects.toThrow('HTTP 401');
     expect(run).toHaveBeenCalledTimes(1);
     expect(waits).toEqual([]);
-    // 配置错误不该污染全局节奏
+    // 配置錯誤不該汙染全域性節奏
     expect(naiCooldownRemainingMs()).toBe(0);
   });
 
-  it('取消立刻抛出,不重试', async () => {
+  it('取消立刻丟擲,不重試', async () => {
     const { delay } = fakeDelay();
     const run = vi.fn(async () => {
       throw abortError();
@@ -238,7 +238,7 @@ describe('重试执行器', () => {
     expect(run).toHaveBeenCalledTimes(1);
   });
 
-  it('Retry-After 抬高等待时长', async () => {
+  it('Retry-After 抬高等待時長', async () => {
     const { waits, delay } = fakeDelay();
     const run = vi
       .fn<() => Promise<string>>()
@@ -248,7 +248,7 @@ describe('重试执行器', () => {
     expect(waits[0]).toBe(45_000);
   });
 
-  it('每次重试都回报进度', async () => {
+  it('每次重試都回報進度', async () => {
     const { delay } = fakeDelay();
     const onRetry = vi.fn();
     const run = vi.fn(async () => {
@@ -260,7 +260,7 @@ describe('重试执行器', () => {
     expect(onRetry.mock.calls[0][0].max).toBe(NAI_MAX_ATTEMPTS - 1);
   });
 
-  it('网络级失败(TypeError)也重试', async () => {
+  it('網路級失敗(TypeError)也重試', async () => {
     const { delay } = fakeDelay();
     const run = vi
       .fn<() => Promise<string>>()
@@ -270,7 +270,7 @@ describe('重试执行器', () => {
     expect(run).toHaveBeenCalledTimes(2);
   });
 
-  it('等待期间被取消:等待抛错就地中断,不再重跑', async () => {
+  it('等待期間被取消:等待拋錯就地中斷,不再重跑', async () => {
     const run = vi.fn(async () => {
       throw httpError(429);
     });

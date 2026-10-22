@@ -39,16 +39,16 @@ const configuring = ref(false);
 const assistOpen = ref(false);
 const assistDraft = ref('');
 const assistResult = ref<WorkflowAssistResult | null>(null);
-/** AI 预览针对哪一套:预览期间用户可能切走或删掉,应用时按 id 回写而不是写「当前」。 */
+/** AI 預覽針對哪一套:預覽期間使用者可能切走或刪掉,應用時按 id 回寫而不是寫「當前」。 */
 const assistTargetId = ref('');
 const confirmDeleteOpen = ref(false);
 
-/** 本渠道是否为当前出图渠道;「使用此渠道」按钮与设置页选择器、页签徽标同属一个开关。 */
+/** 本渠道是否為當前出圖渠道;「使用此渠道」按鈕與設定頁選擇器、頁籤徽標同屬一個開關。 */
 const inUse = computed(() => settings.defaultBackend === 'comfyui');
 
-/* ============ 工作流库 ============ */
+/* ============ 工作流庫 ============ */
 
-/** 当前预设。settings 是 reactive,直接把它的字段绑 v-model 即可就地编辑。 */
+/** 當前預設。settings 是 reactive,直接把它的欄位綁 v-model 即可就地編輯。 */
 const active = computed(() => activeComfyPreset());
 
 const workflowOptions = computed(() =>
@@ -56,8 +56,8 @@ const workflowOptions = computed(() =>
 );
 
 /**
- * 下拉的值取「实际生效的那一套」而非存的 id:存的 id 悬空时
- * activeComfyPreset 会回落第一条,下拉也该跟着显示第一条,不能显示空白。
+ * 下拉的值取「實際生效的那一套」而非存的 id:存的 id 懸空時
+ * activeComfyPreset 會回落第一條,下拉也該跟著顯示第一條,不能顯示空白。
  */
 const activeId = computed<string>({
   get: () => active.value.id,
@@ -66,14 +66,14 @@ const activeId = computed<string>({
   },
 });
 
-/** 只剩一套时不给删:workflows 恒非空是全局不变式,禁用比「点了没反应」诚实。 */
+/** 只剩一套時不給刪:workflows 恆非空是全域性不變式,停用比「點了沒反應」誠實。 */
 const canRemove = computed(() => settings.comfyui.workflows.length > 1);
 
 function switchTo(preset: { id: string }) {
   settings.comfyui.activeWorkflowId = preset.id;
 }
 
-/** 改名是低频操作:平时只显示下拉,点「改名」才把选择器原地换成输入框,省掉常驻的名称行。 */
+/** 改名是低頻操作:平時只顯示下拉,點「改名」才把選擇器原地換成輸入框,省掉常駐的名稱行。 */
 const renaming = ref(false);
 const renameDraft = ref('');
 const renameInput = ref<HTMLInputElement | null>(null);
@@ -84,7 +84,7 @@ function startRename() {
   nextTick(() => renameInput.value?.focus());
 }
 
-/** Enter / 失焦都算确认;Esc 直接置 renaming=false 不经过这里,即为取消。 */
+/** Enter / 失焦都算確認;Esc 直接置 renaming=false 不經過這裡,即為取消。 */
 function commitRename() {
   if (renaming.value) active.value.name = renameDraft.value.trim();
   renaming.value = false;
@@ -97,8 +97,8 @@ function addWorkflow() {
 }
 
 function duplicateWorkflow() {
-  // 拷全部字段(JSON/开关/尺寸一起复制),只换 id 与名字;id 生成仍由 settings 统一口径。
-  // simple 是嵌套对象(含 loras 数组),必须深拷——浅拷会让两套预设共享同一份参数。
+  // 拷全部欄位(JSON/開關/尺寸一起複製),只換 id 與名字;id 生成仍由 settings 統一口徑。
+  // simple 是巢狀物件(含 loras 陣列),必須深拷——淺拷會讓兩套預設共享同一份引數。
   const preset = {
     ...active.value,
     id: newComfyWorkflow().id,
@@ -119,22 +119,22 @@ function confirmRemoveWorkflow() {
   const index = list.findIndex(w => w.id === active.value.id);
   if (index < 0) return;
   list.splice(index, 1);
-  // 删掉的是当前项:接位到原位置那一条(已是最后一条则退一格)
+  // 刪掉的是當前項:接位到原位置那一條(已是最後一條則退一格)
   settings.comfyui.activeWorkflowId = list[Math.min(index, list.length - 1)].id;
 }
 
-/* ============ 简易模式:选模型填参数 ============ */
+/* ============ 簡易模式:選模型填引數 ============ */
 
-// 分段开关文案要短(括注会让小药丸挤变形),含义靠下方的表单本身说明;
-// 顺序:默认项 custom 在左(与「存量预设/新预设都是自定义工作流」的口径一致)
+// 分段開關文案要短(括注會讓小藥丸擠變形),含義靠下方的表單本身說明;
+// 順序:預設項 custom 在左(與「存量預設/新預設都是自定義工作流」的口徑一致)
 const modeOptions: Array<{ value: ComfyPresetMode; label: string }> = [
-  { value: 'custom', label: '自定义工作流' },
-  { value: 'simple', label: '简易参数' },
+  { value: 'custom', label: '自定義工作流' },
+  { value: 'simple', label: '簡易引數' },
 ];
 
 const templateOptions = COMFY_TEMPLATE_OPTIONS;
 
-/** 当前模板的元数据(决定表单显示哪些字段)。 */
+/** 當前模板的後設資料(決定表單顯示哪些欄位)。 */
 const meta = computed(() => COMFY_TEMPLATES[active.value.simple.template] ?? COMFY_TEMPLATES.checkpoint);
 
 const lists = ref<ComfyModelLists | null>(null);
@@ -150,20 +150,20 @@ async function onFetchModels(silent = false) {
     if (!silent) {
       toastr.success(
         lists.value.mode === 'server'
-          ? '已拉取模型列表(ST 转发;LoRA/CLIP 需手输文件名)'
+          ? '已拉取模型列表(ST 轉發;LoRA/CLIP 需手輸檔名)'
           : '已拉取模型列表',
-        '柏宝绘',
+        '虎哩繪',
       );
     }
   } catch (error) {
     fetchError.value = errorMessage(error);
-    if (!silent) toastr.error(fetchError.value, '拉取模型列表失败');
+    if (!silent) toastr.error(fetchError.value, '拉取模型列表失敗');
   } finally {
     fetching.value = false;
   }
 }
 
-// 进入简易模式且手上没有列表时自动拉一次(静默,失败只在状态行留原因)
+// 進入簡易模式且手上沒有列表時自動拉一次(靜默,失敗只在狀態行留原因)
 watch(
   () => [active.value.id, active.value.mode] as const,
   () => {
@@ -174,12 +174,12 @@ watch(
   { immediate: true },
 );
 
-// 状态行只在「有话要说」时出现:直连拉成功是常态,静默(候选已进 datalist);
-// 转发模式要提醒 LoRA/CLIP 拿不到;失败要留原因。手动点按钮的正反馈由 toastr 负责。
+// 狀態行只在「有話要說」時出現:直連拉成功是常態,靜默(候選已進 datalist);
+// 轉發模式要提醒 LoRA/CLIP 拿不到;失敗要留原因。手動點按鈕的正反饋由 toastr 負責。
 const fetchStatus = computed(() => {
-  if (fetchError.value) return `拉取失败:${fetchError.value}`;
+  if (fetchError.value) return `拉取失敗:${fetchError.value}`;
   if (!lists.value || lists.value.mode === 'browser') return '';
-  return 'ST 转发拿不到 LoRA/CLIP 列表,这两项需手输(ComfyUI 加 --enable-cors-header 可直连)';
+  return 'ST 轉發拿不到 LoRA/CLIP 列表,這兩項需手輸(ComfyUI 加 --enable-cors-header 可直連)';
 });
 
 const modelOptions = computed(() => {
@@ -198,7 +198,7 @@ const schedulerOptions = computed(() =>
   lists.value?.schedulers.length ? lists.value.schedulers : FALLBACK_SCHEDULERS,
 );
 
-// 选了列表里的 GGUF 文件自动勾选 GGUF;选回普通 unet 自动取消(手输的名字不动开关)
+// 選了列表裡的 GGUF 檔案自動勾選 GGUF;選回普通 unet 自動取消(手輸的名字不動開關)
 watch(
   () => active.value.simple.model,
   name => {
@@ -209,9 +209,9 @@ watch(
 );
 
 /**
- * 切架构模板:采样参数换成新模板推荐值,模型/VAE/CLIP 清空(列表不同源),
- * LoRA 与固定正负词保留(与架构无关)。尺寸若还是旧模板默认值则跟着换,
- * 用户自己改过的尺寸不动。
+ * 切架構模板:取樣引數換成新模板推薦值,模型/VAE/CLIP 清空(列表不同源),
+ * LoRA 與固定正負詞保留(與架構無關)。尺寸若還是舊模板預設值則跟著換,
+ * 使用者自己改過的尺寸不動。
  */
 function onTemplateChange(id: string) {
   if (!isComfyTemplateId(id)) return;
@@ -237,27 +237,27 @@ function removeLora(index: number) {
   active.value.simple.loras.splice(index, 1);
 }
 
-/** 简易模式状态药丸:与出图组装同一口径(validateSimpleConfig)。 */
+/** 簡易模式狀態藥丸:與出圖組裝同一口徑(validateSimpleConfig)。 */
 const simpleState = computed(() => {
   const invalid = validateSimpleConfig(active.value.simple);
   return invalid
-    ? { tone: 'error', text: '未就绪', detail: invalid }
+    ? { tone: 'error', text: '未就緒', detail: invalid }
     : { tone: 'ok', text: '有效', detail: '' };
 });
 
 const nlHint = computed(() =>
   active.value.mode === 'simple'
-    ? '额外生成一段自然语言描述;简易模式下优先于 tag 作为正向提示词(Flux/Anima 建议开启)'
-    : '额外生成一段自然语言描述,随 %nl% 注入工作流',
+    ? '額外生成一段自然語言描述;簡易模式下優先於 tag 作為正向提示詞(Flux/Anima 建議開啟)'
+    : '額外生成一段自然語言描述,隨 %nl% 注入工作流',
 );
 
-/** 药丸只显示一个词,具体原因放 title 悬浮提示,不占版面。 */
+/** 藥丸只顯示一個詞,具體原因放 title 懸浮提示,不佔版面。 */
 const workflowState = computed(() => {
-  if (!active.value.workflow.trim()) return { tone: 'muted', text: '未填写', detail: '' };
+  if (!active.value.workflow.trim()) return { tone: 'muted', text: '未填寫', detail: '' };
   try {
     const placeholders = getWorkflowPlaceholders(active.value.workflow);
     if (!placeholders.includes('prompt')) {
-      return { tone: 'error', text: '缺 %prompt%', detail: 'JSON 有效，但缺少必需的 %prompt% 占位符' };
+      return { tone: 'error', text: '缺 %prompt%', detail: 'JSON 有效，但缺少必需的 %prompt% 佔位符' };
     }
     const unknown = placeholders.filter(
       name => !['prompt', 'negative_prompt', 'seed', 'nl', 'width', 'height'].includes(name),
@@ -265,17 +265,17 @@ const workflowState = computed(() => {
     if (unknown.length) {
       return {
         tone: 'error',
-        text: '占位符不支持',
-        detail: `暂不支持：${unknown.map(name => `%${name}%`).join('、')}`,
+        text: '佔位符不支援',
+        detail: `暫不支援：${unknown.map(name => `%${name}%`).join('、')}`,
       };
     }
     return {
       tone: 'ok',
       text: '有效',
-      detail: `已识别 ${placeholders.map(name => `%${name}%`).join('、')}`,
+      detail: `已識別 ${placeholders.map(name => `%${name}%`).join('、')}`,
     };
   } catch (error) {
-    return { tone: 'error', text: 'JSON 无效', detail: errorMessage(error) };
+    return { tone: 'error', text: 'JSON 無效', detail: errorMessage(error) };
   }
 });
 
@@ -289,9 +289,9 @@ async function onTestConnection() {
   testing.value = true;
   try {
     const result = await testComfyConnection(effectiveComfyConn());
-    toastr.success(result.mode === 'server' ? 'ComfyUI 连接正常（ST 后端转发）' : 'ComfyUI 连接正常（浏览器直连）');
+    toastr.success(result.mode === 'server' ? 'ComfyUI 連線正常（ST 後端轉發）' : 'ComfyUI 連線正常（瀏覽器直連）');
   } catch (error) {
-    toastr.error(errorMessage(error), 'ComfyUI 连接失败');
+    toastr.error(errorMessage(error), 'ComfyUI 連線失敗');
   } finally {
     testing.value = false;
   }
@@ -299,12 +299,12 @@ async function onTestConnection() {
 
 const purposeLabels: Record<WorkflowBindingPurpose, string> = {
   positive_tag: '正向 tag',
-  positive_nl: '独立自然语言',
-  positive_combined: '正向 tag + 自然语言共用',
-  negative: '负面提示词',
-  seed: '随机种子',
-  width: '主画布宽度',
-  height: '主画布高度',
+  positive_nl: '獨立自然語言',
+  positive_combined: '正向 tag + 自然語言共用',
+  negative: '負面提示詞',
+  seed: '隨機種子',
+  width: '主畫布寬度',
+  height: '主畫布高度',
 };
 
 async function onAutoConfigure() {
@@ -314,7 +314,7 @@ async function onAutoConfigure() {
   try {
     const result = await configureWorkflowWithAi(active.value.workflow);
     if (!result.changes.length) {
-      toastr.info('工作流中的动态参数已经配置，无需修改', '柏宝绘');
+      toastr.info('工作流中的動態引數已經配置，無需修改', '虎哩繪');
       return;
     }
     assistResult.value = result;
@@ -322,7 +322,7 @@ async function onAutoConfigure() {
     assistTargetId.value = targetId;
     assistOpen.value = true;
   } catch (error) {
-    toastr.error(errorMessage(error), 'AI 配置工作流失败');
+    toastr.error(errorMessage(error), 'AI 配置工作流失敗');
   } finally {
     configuring.value = false;
   }
@@ -338,18 +338,18 @@ function closeAssist() {
 function applyAssist() {
   try {
     const target = settings.comfyui.workflows.find(w => w.id === assistTargetId.value);
-    if (!target) throw new Error('目标工作流已被删除，请重新配置');
+    if (!target) throw new Error('目標工作流已被刪除，請重新配置');
     const placeholders = getWorkflowPlaceholders(assistDraft.value);
-    if (!placeholders.includes('prompt')) throw new Error('预览工作流缺少 %prompt% 占位符');
+    if (!placeholders.includes('prompt')) throw new Error('預覽工作流缺少 %prompt% 佔位符');
     target.workflow = assistDraft.value;
     const name = target.name;
     closeAssist();
-    toastr.success(`已应用 AI 配置的工作流（${name}）`, '柏宝绘');
+    toastr.success(`已應用 AI 配置的工作流（${name}）`, '虎哩繪');
     if (placeholders.includes('nl') && !target.naturalLanguage) {
-      toastr.info('工作流已配置 %nl%；需要时请开启「生成自然语言」', '柏宝绘');
+      toastr.info('工作流已配置 %nl%；需要時請開啟「生成自然語言」', '虎哩繪');
     }
   } catch (error) {
-    toastr.error(errorMessage(error), '工作流无法应用');
+    toastr.error(errorMessage(error), '工作流無法應用');
   }
 }
 </script>
@@ -370,34 +370,34 @@ function applyAssist() {
         </div>
 
         <div class="conn-actions">
-          <span v-if="inUse" class="conn-inuse"><Icon name="check" :size="13" /> 当前出图渠道</span>
+          <span v-if="inUse" class="conn-inuse"><Icon name="check" :size="13" /> 當前出圖渠道</span>
           <button
             v-else
             class="bbi-btn conn-use"
             type="button"
             @click="settings.defaultBackend = 'comfyui'"
           >
-            使用此渠道出图
+            使用此渠道出圖
           </button>
           <button class="bbi-btn" type="button" :disabled="testing" @click="onTestConnection">
             <Icon name="plug" />
-            {{ testing ? '连接中…' : '测试连接' }}
+            {{ testing ? '連線中…' : '測試連線' }}
           </button>
         </div>
       </Collapsible>
 
       <Collapsible title="工作流" :open="false">
         <div class="wf-row">
-          <span class="bbi-field-label">当前工作流</span>
+          <span class="bbi-field-label">當前工作流</span>
           <input
             v-if="renaming"
             ref="renameInput"
             class="bbi-input"
             type="text"
             v-model="renameDraft"
-            placeholder="工作流名称"
+            placeholder="工作流名稱"
             spellcheck="false"
-            title="Enter 确认，Esc 取消"
+            title="Enter 確認，Esc 取消"
             @keydown.enter.prevent="commitRename"
             @keydown.esc.stop.prevent="renaming = false"
             @blur="commitRename"
@@ -407,14 +407,14 @@ function applyAssist() {
             class="wf-select"
             v-model="activeId"
             :options="workflowOptions"
-            aria-label="当前工作流"
+            aria-label="當前工作流"
           />
           <span v-if="!renaming" class="wf-ops">
             <button
               class="bbi-icon-btn wf-op"
               type="button"
-              title="重命名当前工作流"
-              aria-label="重命名当前工作流"
+              title="重新命名當前工作流"
+              aria-label="重新命名當前工作流"
               @click="startRename"
             >
               <Icon name="edit" :size="14" />
@@ -431,8 +431,8 @@ function applyAssist() {
             <button
               class="bbi-icon-btn wf-op"
               type="button"
-              title="复制当前工作流(含开关与尺寸)"
-              aria-label="复制当前工作流"
+              title="複製當前工作流(含開關與尺寸)"
+              aria-label="複製當前工作流"
               @click="duplicateWorkflow"
             >
               <Icon name="copy" :size="14" />
@@ -441,8 +441,8 @@ function applyAssist() {
               class="bbi-icon-btn wf-op wf-remove"
               type="button"
               :disabled="!canRemove"
-              :title="canRemove ? '删除当前工作流' : '至少要保留一套工作流'"
-              aria-label="删除当前工作流"
+              :title="canRemove ? '刪除當前工作流' : '至少要保留一套工作流'"
+              aria-label="刪除當前工作流"
               @click="confirmDeleteOpen = true"
             >
               <Icon name="trash" :size="14" />
@@ -450,10 +450,10 @@ function applyAssist() {
           </span>
         </div>
 
-        <!-- 分界:线以下的开关、尺寸与 JSON 均跟随当前选中的这一套 -->
+        <!-- 分界:線以下的開關、尺寸與 JSON 均跟隨當前選中的這一套 -->
         <hr class="wf-divider" />
 
-        <!-- 配置方式:分段开关二选一(复用全局 bbi-segmented;两个选项用下拉太重),状态药丸居右 -->
+        <!-- 配置方式:分段開關二選一(複用全域性 bbi-segmented;兩個選項用下拉太重),狀態藥丸居右 -->
         <div class="wf-mode-bar">
           <div class="bbi-segmented" role="tablist" aria-label="配置方式">
             <button
@@ -480,13 +480,13 @@ function applyAssist() {
         </div>
 
         <label class="bbi-switch-row">
-          <span class="bbi-field-label">生成自然语言</span>
+          <span class="bbi-field-label">生成自然語言</span>
           <input v-model="active.naturalLanguage" type="checkbox" class="bbi-checkbox" />
         </label>
         <p class="bbi-field-hint wf-switch-hint">{{ nlHint }}</p>
 
         <div class="bbi-num-row">
-          <span class="bbi-field-label">竖屏尺寸(宽×高)</span>
+          <span class="bbi-field-label">豎屏尺寸(寬×高)</span>
           <input
             class="bbi-input wf-size"
             type="text"
@@ -496,14 +496,14 @@ function applyAssist() {
             spellcheck="false"
           />
           <datalist id="comfy-portrait-presets">
-            <option value="832×1216">竖版</option>
-            <option value="1024×1536">大竖版</option>
-            <option value="1024×1024">方图</option>
+            <option value="832×1216">豎版</option>
+            <option value="1024×1536">大豎版</option>
+            <option value="1024×1024">方圖</option>
           </datalist>
         </div>
 
         <div class="bbi-num-row">
-          <span class="bbi-field-label">横屏尺寸(宽×高)</span>
+          <span class="bbi-field-label">橫屏尺寸(寬×高)</span>
           <input
             class="bbi-input wf-size"
             type="text"
@@ -513,14 +513,14 @@ function applyAssist() {
             spellcheck="false"
           />
           <datalist id="comfy-landscape-presets">
-            <option value="1216×832">横版</option>
-            <option value="1536×1024">大横版</option>
-            <option value="1024×1024">方图</option>
+            <option value="1216×832">橫版</option>
+            <option value="1536×1024">大橫版</option>
+            <option value="1024×1024">方圖</option>
           </datalist>
         </div>
 
-        <!-- 简易模式:选模型填参数,JSON 由插件按模板组装。
-             分组排布(模型/LoRA/采样/提示词),字段行统一「短标签列 + 输入列」网格,避免长标签把输入框挤得参差不棁。 -->
+        <!-- 簡易模式:選模型填引數,JSON 由外掛按模板組裝。
+             分組排布(模型/LoRA/取樣/提示詞),欄位行統一「短標籤列 + 輸入列」網格,避免長標籤把輸入框擠得參差不梲。 -->
         <template v-if="active.mode === 'simple'">
           <section class="wf-group">
             <div class="wf-group-head">
@@ -534,18 +534,18 @@ function applyAssist() {
                   @click="onFetchModels()"
                 >
                   <Icon name="refresh" :size="12" />
-                  {{ fetching ? '拉取中…' : lists ? '刷新列表' : '拉取模型列表' }}
+                  {{ fetching ? '拉取中…' : lists ? '重新整理列表' : '拉取模型列表' }}
                 </button>
               </span>
             </div>
 
             <div class="wf-field">
-              <span class="wf-field-tag">架构</span>
+              <span class="wf-field-tag">架構</span>
               <BbiSelect
                 class="wf-tpl"
                 :model-value="active.simple.template"
                 :options="templateOptions"
-                aria-label="模型架构"
+                aria-label="模型架構"
                 @update:model-value="onTemplateChange"
               />
             </div>
@@ -554,13 +554,13 @@ function applyAssist() {
               <BbiCombo
                 v-model="active.simple.model"
                 :options="modelOptions"
-                placeholder="safetensors / gguf 文件名"
-                aria-label="模型文件"
+                placeholder="safetensors / gguf 檔名"
+                aria-label="模型檔案"
               />
               <label
                 v-if="meta.modelKind === 'unet'"
                 class="wf-gguf"
-                title="模型是 GGUF 格式(用 UnetLoaderGGUF 加载);从列表选择会自动识别"
+                title="模型是 GGUF 格式(用 UnetLoaderGGUF 載入);從列表選擇會自動識別"
               >
                 <input v-model="active.simple.gguf" type="checkbox" class="bbi-checkbox" />
                 GGUF
@@ -572,7 +572,7 @@ function applyAssist() {
                 v-model="active.simple.vae"
                 :options="vaeOptions"
                 :placeholder="meta.vaePlaceholder"
-                aria-label="VAE 文件"
+                aria-label="VAE 檔案"
               />
             </div>
             <div v-for="clip in meta.clips" :key="clip.key" class="wf-field">
@@ -580,7 +580,7 @@ function applyAssist() {
               <BbiCombo
                 v-model="active.simple[clip.key]"
                 :options="clipOptions"
-                placeholder="clip 文件名"
+                placeholder="clip 檔名"
                 :aria-label="clip.label"
               />
             </div>
@@ -592,8 +592,8 @@ function applyAssist() {
               <button
                 class="bbi-icon-btn wf-op"
                 type="button"
-                title="添加 LoRA(可多个串联)"
-                aria-label="添加 LoRA"
+                title="新增 LoRA(可多個串聯)"
+                aria-label="新增 LoRA"
                 @click="addLora"
               >
                 <Icon name="plus" :size="14" />
@@ -603,8 +603,8 @@ function applyAssist() {
               <BbiCombo
                 v-model="lora.name"
                 :options="loraOptions"
-                placeholder="lora 文件名"
-                aria-label="LoRA 文件"
+                placeholder="lora 檔名"
+                aria-label="LoRA 檔案"
               />
               <input
                 class="bbi-input wf-lora-str"
@@ -613,38 +613,38 @@ function applyAssist() {
                 min="0"
                 max="2"
                 step="0.05"
-                title="强度"
-                aria-label="LoRA 强度"
+                title="強度"
+                aria-label="LoRA 強度"
               />
               <button
                 class="bbi-icon-btn wf-op wf-remove"
                 type="button"
-                title="删除此 LoRA"
-                aria-label="删除此 LoRA"
+                title="刪除此 LoRA"
+                aria-label="刪除此 LoRA"
                 @click="removeLora(index)"
               >
                 <Icon name="trash" :size="14" />
               </button>
             </div>
             <p v-if="active.simple.loras.length" class="bbi-field-hint wf-lora-hint">
-              LoRA 的触发词要自己写进固定正面或 tag 里。
+              LoRA 的觸發詞要自己寫進固定正面或 tag 裡。
             </p>
           </section>
 
           <section class="wf-group">
             <div class="wf-group-head">
-              <span class="bbi-field-label">采样</span>
+              <span class="bbi-field-label">取樣</span>
             </div>
             <div class="wf-params">
               <label class="wf-param">
-                <span>步数</span>
+                <span>步數</span>
                 <input class="bbi-input" type="number" v-model.number="active.simple.steps" min="1" max="150" />
               </label>
               <label class="wf-param" v-if="active.simple.template !== 'flux'">
                 <span>CFG</span>
                 <input class="bbi-input" type="number" v-model.number="active.simple.cfg" min="1" max="30" step="0.5" />
               </label>
-              <label class="wf-param" v-if="active.simple.template === 'flux'" title="FluxGuidance 强度;1 = 不加该节点">
+              <label class="wf-param" v-if="active.simple.template === 'flux'" title="FluxGuidance 強度;1 = 不加該節點">
                 <span>Guidance</span>
                 <input class="bbi-input" type="number" v-model.number="active.simple.guidance" min="1" max="10" step="0.1" />
               </label>
@@ -653,40 +653,40 @@ function applyAssist() {
                 <input class="bbi-input" type="number" v-model.number="active.simple.shift" min="0" max="10" step="0.1" />
               </label>
               <label class="wf-param">
-                <span>采样器</span>
-                <BbiCombo v-model="active.simple.sampler" :options="samplerOptions" placeholder="euler" aria-label="采样器" />
+                <span>取樣器</span>
+                <BbiCombo v-model="active.simple.sampler" :options="samplerOptions" placeholder="euler" aria-label="取樣器" />
               </label>
               <label class="wf-param">
-                <span>调度器</span>
-                <BbiCombo v-model="active.simple.scheduler" :options="schedulerOptions" placeholder="normal" aria-label="调度器" />
+                <span>排程器</span>
+                <BbiCombo v-model="active.simple.scheduler" :options="schedulerOptions" placeholder="normal" aria-label="排程器" />
               </label>
             </div>
           </section>
 
           <section class="wf-group">
             <div class="wf-group-head">
-              <span class="bbi-field-label">提示词</span>
+              <span class="bbi-field-label">提示詞</span>
             </div>
             <div class="wf-prompts">
               <BbiTextarea
                 v-model="active.simple.positive"
                 :rows="2"
                 :max-rows="6"
-                placeholder="固定正面:质量词/风格词等,拼在 AI 生成内容之前"
+                placeholder="固定正面:質量詞/風格詞等,拼在 AI 生成內容之前"
               />
               <BbiTextarea
                 v-if="meta.supportsNegative"
                 v-model="active.simple.negative"
                 :rows="2"
                 :max-rows="6"
-                placeholder="固定负面:通用负面词;AI 生成的动态负面追加在后"
+                placeholder="固定負面:通用負面詞;AI 生成的動態負面追加在後"
               />
             </div>
           </section>
 
         </template>
 
-        <!-- 自定义模式:粘贴 API 格式 JSON -->
+        <!-- 自定義模式:貼上 API 格式 JSON -->
         <template v-else>
         <div class="wf-json-head">
           <span class="bbi-field-label">工作流 JSON</span>
@@ -702,11 +702,11 @@ function applyAssist() {
               class="bbi-btn bbi-btn-primary bbi-btn-sm"
               type="button"
               :disabled="configuring || !active.workflow.trim()"
-              title="AI 判断节点用途并自动配置占位符；工作流节点、模型名和本地路径会发送给设置页「生成 tag 使用」的 API"
+              title="AI 判斷節點用途並自動配置佔位符；工作流節點、模型名和本地路徑會發送給設定頁「生成 tag 使用」的 API"
               @click="onAutoConfigure"
             >
               <Icon name="sparkles" :size="12" />
-              {{ configuring ? '分析中…' : 'AI 自动配置' }}
+              {{ configuring ? '分析中…' : 'AI 自動配置' }}
             </button>
           </span>
         </div>
@@ -718,7 +718,7 @@ function applyAssist() {
           placeholder='{"3": {"class_type": "KSampler", ...}, ...}'
         />
         <p class="bbi-field-hint wf-hint">
-          「Save (API Format)」导出；可用 %prompt% %negative_prompt% %seed% %nl% %width% %height%
+          「Save (API Format)」匯出；可用 %prompt% %negative_prompt% %seed% %nl% %width% %height%
         </p>
         </template>
       </Collapsible>
@@ -726,13 +726,13 @@ function applyAssist() {
 
     <ConfirmDialog
       v-model:open="confirmDeleteOpen"
-      title="删除工作流"
-      confirm-text="删除"
+      title="刪除工作流"
+      confirm-text="刪除"
       confirm-icon="trash"
       tone="danger"
       @confirm="confirmRemoveWorkflow"
     >
-      确定删除工作流「{{ active.name || '未命名工作流' }}」？删除后无法恢复。
+      確定刪除工作流「{{ active.name || '未命名工作流' }}」？刪除後無法恢復。
     </ConfirmDialog>
 
     <ModalMask :open="assistOpen" @close="closeAssist">
@@ -741,16 +741,16 @@ function applyAssist() {
         class="bbi-modal workflow-assist-modal"
         role="dialog"
         aria-modal="true"
-        aria-label="预览 AI 配置的工作流"
+        aria-label="預覽 AI 配置的工作流"
       >
         <header class="bbi-modal-head">
-          <span class="bbi-modal-title">预览工作流修改</span>
-          <button class="bbi-icon-btn" type="button" aria-label="关闭" @click="closeAssist">
+          <span class="bbi-modal-title">預覽工作流修改</span>
+          <button class="bbi-icon-btn" type="button" aria-label="關閉" @click="closeAssist">
             <Icon name="close" />
           </button>
         </header>
 
-        <p class="bbi-field-hint">原文与宏由本地重建，AI 只返回节点用途；请检查后再应用。</p>
+        <p class="bbi-field-hint">原文與宏由本地重建，AI 只返回節點用途；請檢查後再應用。</p>
         <div class="workflow-change-list">
           <div
             v-for="change in assistResult.changes"
@@ -765,10 +765,10 @@ function applyAssist() {
         <BbiTextarea v-model="assistDraft" :rows="10" :max-rows="24" mono />
 
         <p v-if="assistResult.nlMode !== 'none'" class="workflow-detection">
-          自然语言：{{ assistResult.nlMode === 'combined' ? '与正向 tag 共用输入' : '使用独立输入' }}
+          自然語言：{{ assistResult.nlMode === 'combined' ? '與正向 tag 共用輸入' : '使用獨立輸入' }}
         </p>
         <p v-if="assistResult.hasNegative" class="workflow-detection">
-          已配置动态负面词；生成 tag 时会按画面输出补充负面 tag。
+          已配置動態負面詞；生成 tag 時會按畫面輸出補充負面 tag。
         </p>
 
         <footer class="bbi-modal-foot">
@@ -776,7 +776,7 @@ function applyAssist() {
           <button class="bbi-btn" type="button" @click="closeAssist">取消</button>
           <button class="bbi-btn bbi-btn-primary" type="button" @click="applyAssist">
             <Icon name="check" />
-            应用工作流
+            應用工作流
           </button>
         </footer>
       </div>
@@ -785,8 +785,8 @@ function applyAssist() {
 </template>
 
 <style scoped>
-/* 工作流选择行:grid 而非 flex——靠 flex-basis 撑出的对齐一 wrap 就散,
-   固定首列宽让标签列与下方 switch/num 行的标签列同起点。 */
+/* 工作流選擇行:grid 而非 flex——靠 flex-basis 撐出的對齊一 wrap 就散,
+   固定首列寬讓標籤列與下方 switch/num 行的標籤列同起點。 */
 .wf-row {
   display: grid;
   grid-template-columns: 5.5em minmax(0, 1fr) auto;
@@ -800,7 +800,7 @@ function applyAssist() {
 .wf-row > .bbi-input {
   min-width: 0;
 }
-/* 下拉不吃满:名称通常很短,拉满只会拖出半截空白(子组件根类默认 180px/不伸缩,此处 0,2,0 压过) */
+/* 下拉不吃滿:名稱通常很短,拉滿只會拖出半截空白(子元件根類預設 180px/不伸縮,此處 0,2,0 壓過) */
 .wf-row > .wf-select {
   width: auto;
   max-width: 320px;
@@ -811,8 +811,8 @@ function applyAssist() {
   gap: 4px;
   justify-self: end;
 }
-/* 四个操作是低频且同级的,图标化后整行只剩下拉一个视觉重点;
-   文案退到 title/aria-label,不损失可达性。 */
+/* 四個操作是低頻且同級的,圖示化後整行只剩下拉一個視覺重點;
+   文案退到 title/aria-label,不損失可達性。 */
 .wf-op {
   width: 30px;
   height: 30px;
@@ -822,22 +822,22 @@ function applyAssist() {
   opacity: 0.4;
   cursor: default;
 }
-/* 选择器与预设内容的分界:线以下均跟随当前这套工作流 */
+/* 選擇器與預設內容的分界:線以下均跟隨當前這套工作流 */
 .wf-divider {
   border: 0;
   border-top: 1px dashed var(--bbi-line);
   margin: 4px 0;
 }
-/* 开关自带下留白,说明文字只需补一点上间距(base.css 的 .bbi-input + hint 规则不覆盖此组合) */
+/* 開關自帶下留白,說明文字只需補一點上間距(base.css 的 .bbi-input + hint 規則不覆蓋此組合) */
 .wf-switch-hint {
   margin: 2px 0 6px;
 }
-/* 尺寸输入:比 .bbi-num 宽一点(要装「1024×1536」),但不右对齐——「宽×高」是文本不是数值 */
+/* 尺寸輸入:比 .bbi-num 寬一點(要裝「1024×1536」),但不右對齊——「寬×高」是文本不是數值 */
 .wf-size {
   width: 130px;
   flex: 0 0 auto;
 }
-/* 配置方式:分段开关在左、状态药丸在右 */
+/* 配置方式:分段開關在左、狀態藥丸在右 */
 .wf-mode-bar {
   display: flex;
   align-items: center;
@@ -845,13 +845,13 @@ function applyAssist() {
   gap: 10px;
   padding: 4px 0 6px;
 }
-/* 架构下拉不吃满(同 .wf-select 的理由) */
+/* 架構下拉不吃滿(同 .wf-select 的理由) */
 .wf-tpl {
   width: auto;
   max-width: 320px;
   min-width: 0;
 }
-/* 简易模式分组:组标题带虚线分隔,组间距固定;组内字段行统一「短标签列+输入列+尾部」网格 */
+/* 簡易模式分組:組標題帶虛線分隔,組間距固定;組內欄位行統一「短標籤列+輸入列+尾部」網格 */
 .wf-group {
   padding: 10px 0 2px;
 }
@@ -894,7 +894,7 @@ function applyAssist() {
   white-space: nowrap;
   cursor: pointer;
 }
-/* LoRA 行:文件名吃满、强度定宽、删除收尾(与字段行同节奏) */
+/* LoRA 行:檔名吃滿、強度定寬、刪除收尾(與欄位行同節奏) */
 .wf-lora-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 76px 30px;
@@ -905,7 +905,7 @@ function applyAssist() {
 .wf-lora-hint {
   margin: 4px 0 2px;
 }
-/* 采样参数:多列网格,标签在上输入在下(与 NaiPanel 的 be-row 同款语义) */
+/* 取樣引數:多列網格,標籤在上輸入在下(與 NaiPanel 的 be-row 同款語義) */
 .wf-params {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -929,7 +929,7 @@ function applyAssist() {
     grid-template-columns: repeat(2, 1fr);
   }
 }
-/* JSON 头部行:标签在左,状态药丸与 AI 按钮作为「工具组」在右(textarea 是块级,头部行即它的工具栏) */
+/* JSON 頭部行:標籤在左,狀態藥丸與 AI 按鈕作為「工具組」在右(textarea 是塊級,頭部行即它的工具欄) */
 .wf-json-head {
   display: flex;
   align-items: center;
@@ -946,8 +946,8 @@ function applyAssist() {
 .wf-hint {
   margin-top: 8px;
 }
-/* 危险操作按钮:平时与其它图标钮同样低调,hover 才显红(与 ConfirmDialog 同口径)。
-   图标钮无描边,故 hover 只换底色与前景色,不碰 border。 */
+/* 危險操作按鈕:平時與其它圖示鈕同樣低調,hover 才顯紅(與 ConfirmDialog 同口徑)。
+   圖示鈕無描邊,故 hover 只換底色與前景色,不碰 border。 */
 .wf-remove:not(:disabled) {
   color: var(--bbi-danger);
 }
@@ -955,7 +955,7 @@ function applyAssist() {
   color: var(--bbi-danger);
   background: var(--bbi-danger-soft);
 }
-/* AI 预览弹窗关闭钮:.bbi-icon-btn 只在 App.vue 里声明(scoped 不跨组件),此处补一份 */
+/* AI 預覽彈窗關閉鈕:.bbi-icon-btn 只在 App.vue 裡宣告(scoped 不跨元件),此處補一份 */
 .bbi-icon-btn {
   width: 36px;
   height: 36px;
@@ -976,7 +976,7 @@ function applyAssist() {
   color: var(--bbi-ink);
   background: var(--bbi-line-strong);
 }
-/* JSON 状态药丸:复用全局 bbi-prompt-state 基样式,此处只按 tone 上色 */
+/* JSON 狀態藥丸:複用全域性 bbi-prompt-state 基樣式,此處只按 tone 上色 */
 .wf-state.is-ok {
   color: var(--bbi-accent);
   background: var(--bbi-accent-soft);
@@ -1023,7 +1023,7 @@ function applyAssist() {
   font-size: 12px;
   line-height: 1.5;
 }
-/* URL 标签与输入框同行:标签靠左不压缩,输入框吃满剩余宽度 */
+/* URL 標籤與輸入框同行:標籤靠左不壓縮,輸入框吃滿剩餘寬度 */
 .api-row {
   display: flex;
   align-items: center;
@@ -1043,7 +1043,7 @@ function applyAssist() {
   align-items: center;
   margin-top: 12px;
 }
-/* 左侧「使用此渠道 / 当前出图渠道」与右侧测试连接分据两端 */
+/* 左側「使用此渠道 / 當前出圖渠道」與右側測試連線分據兩端 */
 .conn-use,
 .conn-inuse {
   margin-right: auto;
@@ -1056,7 +1056,7 @@ function applyAssist() {
   color: var(--bbi-accent);
 }
 @media (max-width: 640px) {
-  /* 窄屏:四个图标钮 + 标签会把下拉挤成一条缝,标签独占首行,下拉与操作组同行分据两端 */
+  /* 窄屏:四個圖示鈕 + 標籤會把下拉擠成一條縫,標籤獨佔首行,下拉與操作組同行分據兩端 */
   .wf-row {
     grid-template-columns: minmax(0, 1fr) auto;
     row-gap: 8px;

@@ -1,5 +1,5 @@
 declare global {
-  // ST 在全局挂载了这些依赖,这里只声明插件实际使用到的最小类型。
+  // ST 在全域性掛載了這些依賴,這裡只宣告外掛實際使用到的最小型別。
   const $: any;
   const _: any;
   const toastr: any;

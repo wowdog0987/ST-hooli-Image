@@ -5,19 +5,19 @@ const BTN_ID = 'bbi-topbar-button';
 const STYLE_ID = 'bbi-topbar-style';
 
 function ensureStyle(): void {
-  // 美化主题可能清空顶栏图标字形,用高特异性选择器强制还原(见 iconFallback)
+  // 美化主題可能清空頂欄圖示字形,用高特異性選擇器強制還原(見 iconFallback)
   ensureIconFallback(STYLE_ID, `#top-settings-holder #${BTN_ID} .drawer-icon.fa-solid`);
 }
 
 /**
- * 往 ST 顶栏(#top-settings-holder)注入一个快速打开柏宝绘的 drawer 按钮,
- * 位置在「用户设定管理」(#persona-management-button)左边。
+ * 往 ST 頂欄(#top-settings-holder)注入一個快速開啟虎哩繪的 drawer 按鈕,
+ * 位置在「使用者設定管理」(#persona-management-button)左邊。
  *
- * 注入的按钮**不进 shadow DOM**——直接用 ST 的 .drawer / .drawer-icon 类名,
- * 跟随酒馆主题美化。点击只负责打开柏宝绘窗口,不展开任何抽屉(故无 .drawer-toggle,
- * 避免 ST 的 doNavbarIconClick 把它当抽屉来开合)。
+ * 注入的按鈕**不進 shadow DOM**——直接用 ST 的 .drawer / .drawer-icon 類名,
+ * 跟隨酒館主題美化。點選只負責開啟虎哩繪視窗,不展開任何抽屜(故無 .drawer-toggle,
+ * 避免 ST 的 doNavbarIconClick 把它當抽屜來開合)。
  *
- * 受设置开关控制:开 → 确保已注入;关 → 移除。轮询等顶栏出现(顶栏懒加载)。
+ * 受設定開關控制:開 → 確保已注入;關 → 移除。輪詢等頂欄出現(頂欄懶載入)。
  */
 let pollTimer: ReturnType<typeof setInterval> | null = null;
 
@@ -27,10 +27,10 @@ function buildButton(): HTMLElement {
   btn.className = 'drawer';
   btn.innerHTML = `
     <div class="drawer-toggle">
-      <div class="drawer-icon fa-solid fa-palette fa-fw closedIcon" title="柏宝绘"></div>
+      <div class="drawer-icon fa-solid fa-palette fa-fw closedIcon" title="虎哩繪"></div>
     </div>
   `;
-  // 仅打开窗口,不走 ST 的抽屉开合逻辑(故未挂 .drawer-toggle 的 doNavbarIconClick)
+  // 僅開啟視窗,不走 ST 的抽屜開合邏輯(故未掛 .drawer-toggle 的 doNavbarIconClick)
   btn.querySelector('.drawer-toggle')?.addEventListener('click', e => {
     e.preventDefault();
     e.stopPropagation();
@@ -39,7 +39,7 @@ function buildButton(): HTMLElement {
   return btn;
 }
 
-/** 真正执行插入:成功或已存在返回 true,顶栏未就绪返回 false(由轮询重试)。 */
+/** 真正執行插入:成功或已存在返回 true,頂欄未就緒返回 false(由輪詢重試)。 */
 function tryInject(): boolean {
   const holder = document.getElementById('top-settings-holder');
   if (!holder) return false;
@@ -47,7 +47,7 @@ function tryInject(): boolean {
 
   ensureStyle();
   const btn = buildButton();
-  // 插到「用户设定管理」左边;它若还没渲染则退而挂到顶栏末尾。
+  // 插到「使用者設定管理」左邊;它若還沒渲染則退而掛到頂欄末尾。
   const persona = document.getElementById('persona-management-button');
   if (persona) persona.before(btn);
   else holder.appendChild(btn);
@@ -58,7 +58,7 @@ function removeButton(): void {
   document.getElementById(BTN_ID)?.remove();
 }
 
-/** 按开关同步顶栏按钮的有无。开关变化时调用即可(幂等)。 */
+/** 按開關同步頂欄按鈕的有無。開關變化時呼叫即可(冪等)。 */
 export function syncTopBarButton(enabled: boolean): void {
   if (pollTimer) {
     clearInterval(pollTimer);
@@ -69,8 +69,8 @@ export function syncTopBarButton(enabled: boolean): void {
     return;
   }
   if (tryInject()) return;
-  // 顶栏懒加载:轮询等它出现。顶栏是 index.html 静态结构,通常首次即命中、timer 不启动;
-  // 万一始终不出现,封顶 ~20s(40 次)后放弃,绝不常驻空转(同 index.ts 的 bindMemoryWhenReady 范式)。
+  // 頂欄懶載入:輪詢等它出現。頂欄是 index.html 靜態結構,通常首次即命中、timer 不啟動;
+  // 萬一始終不出現,封頂 ~20s(40 次)後放棄,絕不常駐空轉(同 index.ts 的 bindMemoryWhenReady 範式)。
   let attempts = 0;
   pollTimer = setInterval(() => {
     if (tryInject() || ++attempts > 40) {

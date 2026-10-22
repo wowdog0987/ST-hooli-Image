@@ -1,14 +1,14 @@
 import type { NaiArtistPreset } from '@/state/settings';
 
 /**
- * 画师串库的管理态纯逻辑(搜索匹配 / 删除接位规划)。
- * 与交互解耦,便于单测;NaiArtistManager.vue 只做交互与落盘。
+ * 畫師串庫的管理態純邏輯(搜尋匹配 / 刪除接位規劃)。
+ * 與互動解耦,便於單測;NaiArtistManager.vue 只做互動與落盤。
  */
 
 /**
- * 搜索匹配:名称 + 画师串内容,大小写不敏感的子串匹配;空词恒真(= 不过滤)。
- * 绑定的正/负面词不参与——用户记画风靠的是名字和那串 artist tag,
- * 匹配面铺得越广,「明明搜到了」与「这怎么也命中」的意外都越多。
+ * 搜尋匹配:名稱 + 畫師串內容,大小寫不敏感的子串匹配;空詞恆真(= 不過濾)。
+ * 綁定的正/負面詞不參與——使用者記畫風靠的是名字和那串 artist tag,
+ * 匹配面鋪得越廣,「明明搜到了」與「這怎麼也命中」的意外都越多。
  */
 export function matchArtist(
   preset: Pick<NaiArtistPreset, 'name' | 'prompt'>,
@@ -20,21 +20,21 @@ export function matchArtist(
 }
 
 export interface ArtistRemovalPlan {
-  /** 删除后的库(保持原顺序)。 */
+  /** 刪除後的庫(保持原順序)。 */
   remaining: NaiArtistPreset[];
-  /** 实际被删的条目(调用方据此清理预览图文件)。 */
+  /** 實際被刪的條目(呼叫方據此清理預覽圖檔案)。 */
   removed: NaiArtistPreset[];
   /**
-   * 删除后的 activeArtistId:当前项没被动 → 不动;
-   * 当前项被删 → 接位到原位置那一条(已是末尾则退一格),删空 → ''(= 不使用)。
-   * 与 NaiPanel 单条删除的接位口径一致,刻意**不**回落 [0](静默换画风查不出原因)。
+   * 刪除後的 activeArtistId:當前項沒被動 → 不動;
+   * 當前項被刪 → 接位到原位置那一條(已是末尾則退一格),刪空 → ''(= 不使用)。
+   * 與 NaiPanel 單條刪除的接位口徑一致,刻意**不**回落 [0](靜默換畫風查不出原因)。
    */
   nextActiveId: string;
 }
 
 /**
- * 规划一次删除(单条与批量共用)。removedIds 之外的条目不碰;
- * activeId 不在删除集里就原样保留(内置 bi_* 永不在删除集——管理器不给内置条勾选框)。
+ * 規劃一次刪除(單條與批次共用)。removedIds 之外的條目不碰;
+ * activeId 不在刪除集裡就原樣保留(內建 bi_* 永不在刪除集——管理器不給內建條勾選框)。
  */
 export function planArtistRemoval(
   list: readonly NaiArtistPreset[],

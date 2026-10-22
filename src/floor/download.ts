@@ -1,19 +1,19 @@
 /**
- * 把已落盘的生图结果另存到本地。
+ * 把已落盤的生圖結果另存到本地。
  *
- * 图片是**同源真实文件**(/user/files/bbi_*.png),故 `<a download>` 直接可用,
- * 不必先 fetch 成 blob——省一次全尺寸传输,也避开 blob URL 的生命周期管理。
+ * 圖片是**同源真實檔案**(/user/files/bbi_*.png),故 `<a download>` 直接可用,
+ * 不必先 fetch 成 blob——省一次全尺寸傳輸,也避開 blob URL 的生命週期管理。
  *
- * 两个容易踩的点:
- * - `<a>` 必须先挂进 document 再点:部分浏览器忽略未入文档节点上的合成点击;
- * - 移动端 Safari 不认 download 属性,会退化成「新标签打开」——此时用户仍可长按保存,
- *   属可接受降级(卡片与灯箱都另有长按保存路径,见 Lightbox.vue 顶部注释)。
+ * 兩個容易踩的點:
+ * - `<a>` 必須先掛進 document 再點:部分瀏覽器忽略未入文件節點上的合成點選;
+ * - 移動端 Safari 不認 download 屬性,會退化成「新標籤開啟」——此時使用者仍可長按儲存,
+ *   屬可接受降級(卡片與燈箱都另有長按儲存路徑,見 Lightbox.vue 頂部註釋)。
  */
 export function saveImageFile(src: string, filename?: string): void {
   if (!src) return;
   const link = document.createElement('a');
   link.href = src;
-  link.download = filename || src.split('/').pop() || 'bbi-image.png';
+  link.download = filename || src.split('/').pop() || 'hooli-image.png';
   link.rel = 'noopener';
   document.body.appendChild(link);
   link.click();

@@ -1,31 +1,31 @@
 import { reactive } from 'vue';
 
 /**
- * 「AI 重写提示词」的请求运行态(模块级 store)。
+ * 「AI 重寫提示詞」的請求執行態(模組級 store)。
  *
- * 与 genState 同样的理由必须放组件外:卡片生命周期由水合决定,任一兄弟槽位出图都会
- * 触发整楼重水合、把卡片连同组件内 ref 一起销毁;重写请求还在途,重建后的卡片要能
- * 认领回「AI 重写提示词…」并给出取消入口。
+ * 與 genState 同樣的理由必須放元件外:卡片生命週期由水合決定,任一兄弟槽位出圖都會
+ * 觸發整樓重水合、把卡片連同元件內 ref 一起銷燬;重寫請求還在途,重建後的卡片要能
+ * 認領回「AI 重寫提示詞…」並給出取消入口。
  *
- * 【为什么还要存住 promise】
- * 入口在提示词编辑弹窗里(floor/promptEditor.ts),而**关掉弹窗不能中断重写**——
- * 请求属于这个 store,不属于弹窗。用户中途关窗、稍后重开时,弹窗要能 await 回同一个
- * 在途请求、等它收尾后把新提示词读回输入框(「续上」),而不是只看到一个转圈。
- * 故这里存的是 {票据, promise} 而非单纯的布尔。
+ * 【為什麼還要存住 promise】
+ * 入口在提示詞編輯彈窗裡(floor/promptEditor.ts),而**關掉彈窗不能中斷重寫**——
+ * 請求屬於這個 store,不屬於彈窗。使用者中途關窗、稍後重開時,彈窗要能 await 回同一個
+ * 在途請求、等它收尾後把新提示詞讀回輸入框(「續上」),而不是只看到一個轉圈。
+ * 故這裡存的是 {票據, promise} 而非單純的布林。
  *
- * 与 genState 分开存放,不合并:genState 管的是出图请求(queued/generating/error + hash
- * 对账),这里管的是 LLM 提示词请求。两者各有并发/取消语义(取消出图不该误杀重写,
- * 反之亦然),混在一起只会让状态机互相污染。key 与 genState / registry / autoGenerate
- * 保持同构:chatId|messageId|swipeId|seq。
+ * 與 genState 分開存放,不合並:genState 管的是出圖請求(queued/generating/error + hash
+ * 對賬),這裡管的是 LLM 提示詞請求。兩者各有併發/取消語義(取消出圖不該誤殺重寫,
+ * 反之亦然),混在一起只會讓狀態機互相汙染。key 與 genState / registry / autoGenerate
+ * 保持同構:chatId|messageId|swipeId|seq。
  *
- * 「取消」不在这里做:中止靠 autoTag/runner.ts 的 cancelFloorTags(每楼一把请求锁),
- * 本 store 只负责展示态与收尾认领。
+ * 「取消」不在這裡做:中止靠 autoTag/runner.ts 的 cancelFloorTags(每樓一把請求鎖),
+ * 本 store 只負責展示態與收尾認領。
  */
 
 interface TagPlanRecord {
-  /** 票据:用于识别「迟到的收尾」——旧任务收尾时不得清掉同 key 的新任务。 */
+  /** 票據:用於識別「遲到的收尾」——舊任務收尾時不得清掉同 key 的新任務。 */
   token: number;
-  /** 在途请求。重开的弹窗 await 它即可接上本次重写的收尾。 */
+  /** 在途請求。重開的彈窗 await 它即可接上本次重寫的收尾。 */
   promise: Promise<void>;
 }
 
@@ -38,14 +38,14 @@ export function isTagPlanning(key: string): boolean {
 }
 
 /**
- * 跑一次重写并全程登记运行态。同 key 重复开始以新票据为准(旧任务的收尾不得清掉新任务)。
+ * 跑一次重寫並全程登記執行態。同 key 重複開始以新票據為準(舊任務的收尾不得清掉新任務)。
  *
- * 返回的 promise 与登记的是同一个:调用方可以 await,也可以直接丢掉不管——
- * 请求的生命周期归本 store,不归调用方(关掉弹窗不中断重写靠的就是这一点)。
+ * 返回的 promise 與登記的是同一個:呼叫方可以 await,也可以直接丟掉不管——
+ * 請求的生命週期歸本 store,不歸呼叫方(關掉彈窗不中斷重寫靠的就是這一點)。
  */
 export function runTagPlan(key: string, run: () => Promise<void>): Promise<void> {
   const token = nextToken++;
-  // run() 先跑起来再登记:.finally 的回调是微任务,一定晚于下面这行同步的 set
+  // run() 先跑起來再登記:.finally 的回撥是微任務,一定晚於下面這行同步的 set
   const promise = run().finally(() => {
     if (planning.get(key)?.token === token) planning.delete(key);
   });
@@ -53,12 +53,12 @@ export function runTagPlan(key: string, run: () => Promise<void>): Promise<void>
   return promise;
 }
 
-/** 取回在途重写的 promise(无在途则 null)。供重开的弹窗「续上」。 */
+/** 取回在途重寫的 promise(無在途則 null)。供重開的彈窗「續上」。 */
 export function awaitTagPlan(key: string): Promise<void> | null {
   return planning.get(key)?.promise ?? null;
 }
 
-/** 清空全部(切聊天 / 删楼后的全量重建;在途请求由 runner 的 cancelAll 中止)。 */
+/** 清空全部(切聊天 / 刪樓後的全量重建;在途請求由 runner 的 cancelAll 中止)。 */
 export function clearAllTagPlans(): void {
   planning.clear();
 }

@@ -3,27 +3,27 @@ import { h, render } from 'vue';
 import Lightbox from '@/floor/Lightbox.vue';
 
 /**
- * 命令式打开图片灯箱(供楼层卡片调用)。
+ * 命令式開啟圖片燈箱(供樓層卡片呼叫)。
  *
- * 挂载位置与 components/confirm.ts 同款:插件 host 的 shadow root——那里有 dist/index.css
- * 与 --bbi-* 主题变量,挂 document.body 会裸奔无样式。
+ * 掛載位置與 components/confirm.ts 同款:外掛 host 的 shadow root——那裡有 dist/index.css
+ * 與 --bbi-* 主題變數,掛 document.body 會裸奔無樣式。
  *
- * 特意**不**挂进卡片自己的 shadow root:灯箱是 fixed 全屏层,而卡片活在 .mes_text 内部,
- * 那里的层叠上下文与 overflow 会把它裁掉。
+ * 特意**不**掛進卡片自己的 shadow root:燈箱是 fixed 全屏層,而卡片活在 .mes_text 內部,
+ * 那裡的層疊上下文與 overflow 會把它裁掉。
  */
 
-// 与 index.ts 的 HOST_ID 一致
+// 與 index.ts 的 HOST_ID 一致
 const HOST_ID = 'bbi-app-host';
 
 export interface LightboxOptions {
   src: string;
   prompt?: string;
   filename?: string;
-  /** 提供了才显示删除按钮;点删除先关灯箱再回调。 */
+  /** 提供了才顯示刪除按鈕;點刪除先關燈箱再回調。 */
   onDelete?: () => void;
 }
 
-/** 同一时刻只允许一个灯箱,重复调用先关旧的。 */
+/** 同一時刻只允許一個燈箱,重複呼叫先關舊的。 */
 let closeCurrent: (() => void) | null = null;
 
 export function openLightbox(options: LightboxOptions): void {
@@ -35,7 +35,7 @@ export function openLightbox(options: LightboxOptions): void {
   root.appendChild(container);
 
   const close = () => {
-    if (closeCurrent !== close) return; // 已被后来者替换,不重复清理
+    if (closeCurrent !== close) return; // 已被後來者替換,不重複清理
     closeCurrent = null;
     render(null, container);
     container.remove();

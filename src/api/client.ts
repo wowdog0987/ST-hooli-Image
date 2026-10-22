@@ -11,7 +11,6 @@ import {
 
 /**
  * 通过 SillyTavern 的服务端代理调用任意 OpenAI 兼容端点。
- * (与柏宝书 src/api/client.ts 同源,行为保持一致。)
  *
  * 关键:以 chat_completion_source='openai' + reverse_proxy(base url)+ proxy_password(key)
  * 走 /api/backends/chat-completions/generate。请求由 ST 服务端转发,
@@ -105,7 +104,7 @@ async function estimateTokens(id: number, messages: ChatMsg[], response: string)
       ),
     );
   } catch (e) {
-    console.debug('[柏宝绘] token 估算失败(已忽略)', e);
+    console.debug('[虎哩繪] token 估算失敗(已忽略)', e);
   }
 }
 
@@ -194,7 +193,6 @@ export async function requestCompletion(
  * 对上游无影响:ST 服务端只在 tools 为非空数组时才转发 tool_choice
  * (src/endpoints/backends/chat-completions.js),本函数从不发 tools,该字段到不了服务商。
  *
- * (与柏宝书 src/api/client.ts 的同名函数同源,行为保持一致。)
  */
 export function buildRequestBody(
   channel: ApiChannel,
@@ -214,6 +212,63 @@ export function buildRequestBody(
     // 静默:不影响主对话状态
     presence_penalty: 0,
     frequency_penalty: 0,
+      response_format: {
+        type: 'json_schema',
+        json_schema: {
+          name: 'image_plan',
+          strict: true,
+          schema: {
+            type: 'object',
+            properties: {
+              images: {
+                type: 'array',
+                items: {
+                  type: 'object',
+                  properties: {
+                    position: { type: 'string' },
+                    tag: { type: 'string' },
+                    nl: { type: 'string' },
+                    characters: {
+                      type: 'array',
+                      items: {
+                        type: 'object',
+                        properties: {
+                          name: { type: 'string' },
+                          tag: { type: 'string' },
+                          nl: { type: 'string' }
+                        },
+                        required: ['name', 'tag', 'nl'],
+                        additionalProperties: false
+                      }
+                    },
+                    size: { type: 'string' }
+                  },
+                  required: ['position', 'tag', 'nl', 'characters', 'size'],
+                  additionalProperties: false
+                }
+              },
+              changes: {
+                type: 'array',
+                items: {
+                  type: 'object',
+                  properties: {
+                    name: { type: 'string' },
+                    field: { type: 'string' },
+                    value: { type: 'string' },
+                    nl: { type: 'string' },
+                    reason: { type: 'string' }
+                  },
+                  required: ['name', 'field', 'value', 'reason'],
+                  additionalProperties: false
+                }
+              }
+            },
+            required: ['images', 'changes'],
+            additionalProperties: false
+          }
+        }
+      },
+
   };
 
   const body: Record<string, unknown> = effort
@@ -427,6 +482,21 @@ export function mainApiAvailable(): boolean {
 }
 
 /**
+ * Horae 掛在 CHAT_COMPLETION_PROMPT_READY 上,generateRaw 也會觸發它,於是把整份記憶
+ * (物品/NPC/待辦/劇情軌跡/輸出規則,約一萬 token)追加在我們的 prompt 之後。
+ * Horae 自帶的退出暗號:訊息裡含此標記即跳過本次注入,並由 Horae 自行把標記刪掉。
+ * 未裝 Horae 時標記會原樣送達模型,無害。只改副本,歷史記錄仍是乾淨的 messages。
+ */
+const HORAE_NO_CONTEXT_PREFIX = '[HORAE_INTERNAL:NO_CONTEXT_INJECTION:';
+
+function withHoraeOptOut(messages: ChatMsg[]): ChatMsg[] {
+  if (!messages.length) return messages;
+  const marker = `${HORAE_NO_CONTEXT_PREFIX}hooli_${Date.now().toString(36)}]`;
+  const [first, ...rest] = messages;
+  return [{ ...first, content: `${marker}\n${first.content}` }, ...rest];
+}
+
+/**
  * 用「当前主 API」(主界面正在用的聊天补全/文本补全设置)发一次补全。
  * 走 ST 的 generateRaw:只发我们给的这几条消息,不带聊天历史/角色卡;无需连接档。
  * quiet 类型内部强制非流式,返回清洗后的整段文本;失败抛 ApiError。
@@ -452,7 +522,9 @@ export async function requestViaMainApi(messages: ChatMsg[], opts: RequestOption
   );
 
   try {
-    const content = (await ctx.generateRaw({ prompt: messages, responseLength: MAIN_API_RESPONSE_LENGTH }))?.trim();
+    const content = (
+      await ctx.generateRaw({ prompt: withHoraeOptOut(messages), responseLength: MAIN_API_RESPONSE_LENGTH })
+    )?.trim();
     if (!content) throw new ApiError('主 API 返回空内容');
     // 与副 API 同口径:验收不过记失败,不记「成功」
     opts.validate?.(content);

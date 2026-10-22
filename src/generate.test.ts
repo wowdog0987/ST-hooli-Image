@@ -28,8 +28,8 @@ beforeEach(() => {
 });
 
 /**
- * 把设置调成「NAI 已配齐」。地址与 key 落在**当前接入点**上——渠道级那两个是存量字段。
- * settings 是模块级单例,用例之间会串,故这里把接入点库整个复位成「只有官方一条」。
+ * 把設定調成「NAI 已配齊」。地址與 key 落在**當前接入點**上——渠道級那兩個是存量欄位。
+ * settings 是模組級單例,用例之間會串,故這裡把接入點庫整個復位成「只有官方一條」。
  */
 function naiReady(model: NaiModel = 'nai-diffusion-4-5-full'): void {
   settings.defaultBackend = 'nai';
@@ -41,7 +41,7 @@ function naiReady(model: NaiModel = 'nai-diffusion-4-5-full'): void {
   settings.nai.seed = 0;
 }
 
-/** 把设置调成「ComfyUI 自定义工作流已配齐」。 */
+/** 把設定調成「ComfyUI 自定義工作流已配齊」。 */
 function comfyReady(): void {
   settings.defaultBackend = 'comfyui';
   settings.comfyui.url = 'http://127.0.0.1:8188';
@@ -59,18 +59,18 @@ describe('backendStatus', () => {
     activeNaiEndpoint().key = '  ';
     expect(backendStatus()).toMatchObject({
       configured: false,
-      reason: '当前 NAI 接入点未填写 API Key',
+      reason: '當前 NAI 接入點未填寫 API Key',
     });
 
     activeNaiEndpoint().url = '  ';
     expect(backendStatus()).toMatchObject({
       configured: false,
-      reason: '当前 NAI 接入点未填写服务地址',
+      reason: '當前 NAI 接入點未填寫服務地址',
     });
   });
 
   it('keeps the endpoint name out of reason (it goes to third parties, and users name rows after URLs)', () => {
-    // reason 经 getBackendStatus 原样递给第三方,而公开返回值里绝不能出现地址
+    // reason 經 getBackendStatus 原樣遞給第三方,而公開返回值裡絕不能出現地址
     naiReady();
     const named = newNaiEndpoint('https://my-secret-proxy.example');
     settings.nai.endpoints.push(named);
@@ -79,7 +79,7 @@ describe('backendStatus', () => {
   });
 
   it('judges readiness by the active endpoint, not the legacy channel-level url/key', () => {
-    // 存量字段留着只为回滚,出图一律不看它 —— 否则切到没填 key 的公益站会「看起来能点」
+    // 存量欄位留著只為回滾,出圖一律不看它 —— 否則切到沒填 key 的公益站會「看起來能點」
     naiReady();
     settings.nai.url = 'https://image.novelai.net';
     settings.nai.key = 'legacy';
@@ -89,7 +89,7 @@ describe('backendStatus', () => {
     settings.nai.activeEndpointId = blank.id;
     expect(backendStatus()).toMatchObject({
       configured: false,
-      reason: '当前 NAI 接入点未填写服务地址',
+      reason: '當前 NAI 接入點未填寫服務地址',
     });
   });
 
@@ -113,7 +113,7 @@ describe('backendStatus', () => {
   it('answers supportsCharacters from the model alone, even before the key is filled in', () => {
     naiReady();
     activeNaiEndpoint().key = '';
-    // 第三方要在出图**前**就知道该不该传 characters,不能等配好了才知道
+    // 第三方要在出圖**前**就知道該不該傳 characters,不能等配好了才知道
     expect(backendStatus().supportsCharacters).toBe(true);
   });
 
@@ -127,7 +127,7 @@ describe('backendStatus', () => {
     settings.comfyui.workflows[0].workflow = '  ';
     expect(backendStatus()).toMatchObject({
       configured: false,
-      reason: '当前工作流预设未填写工作流 JSON',
+      reason: '當前工作流預設未填寫工作流 JSON',
     });
   });
 });
@@ -169,7 +169,7 @@ describe('generateImage', () => {
 
     vi.mocked(generateNaiImage).mockRejectedValueOnce(new Error('429'));
     await expect(generateImage({ prompt: '1girl', seed: 1 })).rejects.toThrow('429');
-    // 漏一次 release 就永久少一格并发,漏满就再也发不出请求
+    // 漏一次 release 就永久少一格併發,漏滿就再也發不出請求
     expect(release).toHaveBeenCalledTimes(2);
   });
 
@@ -181,7 +181,7 @@ describe('generateImage', () => {
 
   it('passes characters through untouched — nai.ts owns the model predicate', async () => {
     naiReady();
-    const characters = [{ name: '阿黛尔', tag: '1girl', nl: '' }];
+    const characters = [{ name: '阿黛爾', tag: '1girl', nl: '' }];
     await generateImage({ prompt: 'x', characters, seed: 5, size: 'landscape' });
     expect(vi.mocked(generateNaiImage).mock.calls[0][1]).toEqual({
       prompt: 'x', nl: '', characters, seed: 5, size: 'landscape',
@@ -196,14 +196,14 @@ describe('generateImage', () => {
 
     naiReady();
     expect((await generateImage({ prompt: 'x', characters, seed: 1 })).charactersApplied).toBe(true);
-    // 没传角色时不该报「用上了」
+    // 沒傳角色時不該報「用上了」
     expect((await generateImage({ prompt: 'x', seed: 1 })).charactersApplied).toBe(false);
   });
 
   it('refuses to fire a doomed request when the backend is not configured', async () => {
     naiReady();
     activeNaiEndpoint().key = '';
-    await expect(generateImage({ prompt: 'x', seed: 1 })).rejects.toThrow('未填写 API Key');
+    await expect(generateImage({ prompt: 'x', seed: 1 })).rejects.toThrow('未填寫 API Key');
     expect(vi.mocked(generateNaiImage)).not.toHaveBeenCalled();
   });
 
@@ -211,7 +211,7 @@ describe('generateImage', () => {
     naiReady();
     const onRetry = vi.fn();
     await generateImage({ prompt: 'x', seed: 1 }, undefined, { onRetry });
-    // 落盘还要一会儿,这段时间不该继续显示「稍后重试」
+    // 落盤還要一會兒,這段時間不該繼續顯示「稍後重試」
     expect(onRetry).toHaveBeenLastCalledWith(null);
   });
 

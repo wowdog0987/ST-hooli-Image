@@ -11,17 +11,17 @@ import { ARTIST_PREVIEW_FOLDER, deleteUserImage, uploadUserImage } from '@/st/im
 import { newNaiArtist, settings, type NaiArtistPreset } from '@/state/settings';
 
 /**
- * 画师串库管理器(NAI 面板「管理」按钮唤起)。
+ * 畫師串庫管理器(NAI 面板「管理」按鈕喚起)。
  *
- * 分工:面板里的下拉管「高频切换」,这里管「低频管理」——搜索、预览图、
- * 勾选批量删除、逐条编辑/复制/删除。
+ * 分工:面板裡的下拉管「高頻切換」,這裡管「低頻管理」——搜尋、預覽圖、
+ * 勾選批次刪除、逐條編輯/複製/刪除。
  *
- * 交互约定:
- * - 点卡片主体 = 启用该条(再点当前条 = 停用,回「不使用」);
- * - 左上角勾选框 = 管理态多选,只服务于批量删除,与启用状态无关;
- * - 内置条(bi_*)随插件版本更新,只读:无勾选框、不可删改,「复制」是唯一自定义入口;
- * - 预览图上传后压成最长边 512 的 jpeg,落 user/images/柏宝绘_画师串/<条目id>.jpg,
- *   路径记在条目 previewPath 上,不维护额外索引;换图同名覆盖,删条目时连带删文件。
+ * 互動約定:
+ * - 點卡片主體 = 啟用該條(再點當前條 = 停用,回「不使用」);
+ * - 左上角勾選框 = 管理態多選,只服務於批次刪除,與啟用狀態無關;
+ * - 內建條(bi_*)隨外掛版本更新,只讀:無勾選框、不可刪改,「複製」是唯一自定義入口;
+ * - 預覽圖上傳後壓成最長邊 512 的 jpeg,落 user/images/柏宝绘_画师串/<條目id>.jpg,
+ *   路徑記在條目 previewPath 上,不維護額外索引;換圖同名覆蓋,刪條目時連帶刪檔案。
  */
 
 const props = defineProps<{ open: boolean }>();
@@ -35,17 +35,17 @@ function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
-/** 列表条目:内置库排前(与下拉的顺序一致),附带只读标记。 */
+/** 列表條目:內建庫排前(與下拉的順序一致),附帶只讀標記。 */
 interface ManagerItem {
   preset: NaiArtistPreset;
   builtin: boolean;
 }
 
 const search = ref('');
-/** 管理态勾选集(只存用户条目 id;内置条不可勾选,天然进不来)。 */
+/** 管理態勾選集(只存使用者條目 id;內建條不可勾選,天然進不來)。 */
 const selected = ref<ReadonlySet<string>>(new Set());
 
-// 每次打开回到干净状态:搜索词与勾选都是「这一轮管理」的临时态,不该跨次残留。
+// 每次打開回到乾淨狀態:搜尋詞與勾選都是「這一輪管理」的臨時態,不該跨次殘留。
 watch(
   () => props.open,
   open => {
@@ -62,7 +62,7 @@ const items = computed<ManagerItem[]>(() => [
 
 const filtered = computed(() => items.value.filter(i => matchArtist(i.preset, search.value)));
 
-/** 当前筛选结果里的可勾选(用户)条目:全选/计数都以它为准,内置条不参与批量。 */
+/** 當前篩選結果裡的可勾選(使用者)條目:全選/計數都以它為準,內建條不參與批次。 */
 const selectableFiltered = computed(() => filtered.value.filter(i => !i.builtin));
 
 const allFilteredSelected = computed(
@@ -73,7 +73,7 @@ const allFilteredSelected = computed(
 
 const activeId = computed(() => settings.nai.activeArtistId);
 
-/** 点卡片:启用;再点当前条:停用(回「不使用」,是有意义的存储值)。 */
+/** 點卡片:啟用;再點當前條:停用(回「不使用」,是有意義的儲存值)。 */
 function toggleActive(item: ManagerItem) {
   settings.nai.activeArtistId = item.preset.id === activeId.value ? '' : item.preset.id;
 }
@@ -94,17 +94,17 @@ function toggleSelectAllFiltered() {
   selected.value = next;
 }
 
-/** 新建:入库 + 设为当前 + 直接开编辑弹窗,一步到位。 */
+/** 新建:入庫 + 設為當前 + 直接開編輯彈窗,一步到位。 */
 function addArtist() {
-  const preset = newNaiArtist(`画师串 ${settings.nai.artistPresets.length + 1}`);
+  const preset = newNaiArtist(`畫師串 ${settings.nai.artistPresets.length + 1}`);
   settings.nai.artistPresets.push(preset);
   settings.nai.activeArtistId = preset.id;
   openEdit({ preset, builtin: false });
 }
 
 /**
- * 复制:预览图不随副本走——预览文件随原条目删除,共指一个路径会让副本日后破图。
- * 也不切换当前条:管理器里复制常用于批量攒变体,启用哪条由用户点卡片明示。
+ * 複製:預覽圖不隨副本走——預覽檔案隨原條目刪除,共指一個路徑會讓副本日後破圖。
+ * 也不切換當前條:管理器裡複製常用於批次攢變體,啟用哪條由使用者點卡片明示。
  */
 function duplicate(item: ManagerItem) {
   const src = item.preset;
@@ -116,22 +116,22 @@ function duplicate(item: ManagerItem) {
     negative: src.negative,
   };
   settings.nai.artistPresets.push(preset);
-  toastr.success(`已复制为「${preset.name}」`, '画师串');
+  toastr.success(`已複製為「${preset.name}」`, '畫師串');
 }
 
-/* ============ 预览图 ============ */
+/* ============ 預覽圖 ============ */
 
-/** 预览图最长边:卡片显示约 200px 宽,512 留足高分屏余量,又不把 user/images 撑大。 */
+/** 預覽圖最長邊:卡片顯示約 200px 寬,512 留足高分屏餘量,又不把 user/images 撐大。 */
 const PREVIEW_MAX_EDGE = 512;
 
 const previewFileInput = ref<HTMLInputElement | null>(null);
-/** 本次上传要为哪条换图;文件框是共享的一个,靠它在 change 时找回目标。 */
+/** 本次上傳要為哪條換圖;檔案框是共享的一個,靠它在 change 時找回目標。 */
 let previewTarget: NaiArtistPreset | null = null;
 const uploadingId = ref<string | null>(null);
 
 /**
- * 覆盖同名文件后 URL 不变,浏览器缓存会让卡片继续显示旧图;
- * 本组件内记一份 id → 版本号,上传成功后 bump,<img src> 带上 query 即可破缓存。
+ * 覆蓋同名檔案後 URL 不變,瀏覽器快取會讓卡片繼續顯示舊圖;
+ * 本元件內記一份 id → 版本號,上傳成功後 bump,<img src> 帶上 query 即可破快取。
  */
 const previewVersions = ref<ReadonlyMap<string, number>>(new Map());
 
@@ -159,18 +159,18 @@ async function onPreviewFileChange(event: Event) {
     const dataUrl = await readFileAsDataUrl(file);
     const jpeg = await makeJpegThumbnail(dataUrl, PREVIEW_MAX_EDGE, 0.85);
     const base64 = jpeg.split(',')[1] ?? '';
-    // 文件名 = 条目 id:换图同名覆盖,不会攒孤儿文件
+    // 檔名 = 條目 id:換圖同名覆蓋,不會攢孤兒檔案
     target.previewPath = await uploadUserImage(ARTIST_PREVIEW_FOLDER, target.id, base64, 'jpg');
     previewVersions.value = new Map(previewVersions.value).set(target.id, Date.now());
-    toastr.success(`「${target.name || '未命名画师串'}」预览图已更新`, '画师串');
+    toastr.success(`「${target.name || '未命名畫師串'}」預覽圖已更新`, '畫師串');
   } catch (error) {
-    toastr.error(errorMessage(error), '预览图上传失败');
+    toastr.error(errorMessage(error), '預覽圖上傳失敗');
   } finally {
     uploadingId.value = null;
   }
 }
 
-/** 移除预览:先清字段(界面立即响应),文件删除 best-effort,失败只警告不回滚。 */
+/** 移除預覽:先清欄位(介面立即響應),檔案刪除 best-effort,失敗只警告不回滾。 */
 async function removePreview(preset: NaiArtistPreset) {
   const path = preset.previewPath;
   if (!path) return;
@@ -178,11 +178,11 @@ async function removePreview(preset: NaiArtistPreset) {
   try {
     await deleteUserImage(path);
   } catch (error) {
-    toastr.warning(`预览图引用已移除,但文件清理失败：${errorMessage(error)}`, '画师串');
+    toastr.warning(`預覽圖引用已移除,但檔案清理失敗：${errorMessage(error)}`, '畫師串');
   }
 }
 
-/* ============ 删除(单条与批量共用确认弹窗) ============ */
+/* ============ 刪除(單條與批次共用確認彈窗) ============ */
 
 const deleteOpen = ref(false);
 const deleteList = ref<NaiArtistPreset[]>([]);
@@ -204,7 +204,7 @@ async function confirmDelete() {
   deleting.value = true;
   const ids = new Set(deleteList.value.map(p => p.id));
   const plan = planArtistRemoval(settings.nai.artistPresets, ids, activeId.value);
-  // 预览文件清理 best-effort:文件没删掉不阻塞删条目(孤儿文件可手动清,条目删不掉才烦人)
+  // 預覽檔案清理 best-effort:檔案沒刪掉不阻塞刪條目(孤兒檔案可手動清,條目刪不掉才煩人)
   let fileFailures = 0;
   for (const p of plan.removed) {
     if (!p.previewPath) continue;
@@ -223,15 +223,15 @@ async function confirmDelete() {
   deleting.value = false;
   if (fileFailures) {
     toastr.warning(
-      `已删除 ${plan.removed.length} 条,但 ${fileFailures} 张预览图文件清理失败`,
-      '画师串',
+      `已刪除 ${plan.removed.length} 條,但 ${fileFailures} 張預覽圖檔案清理失敗`,
+      '畫師串',
     );
   } else {
-    toastr.success(`已删除 ${plan.removed.length} 条画师串`, '画师串');
+    toastr.success(`已刪除 ${plan.removed.length} 條畫師串`, '畫師串');
   }
 }
 
-/* ============ 编辑/查看弹窗(内置条只读) ============ */
+/* ============ 編輯/檢視彈窗(內建條只讀) ============ */
 
 const editItem = ref<ManagerItem | null>(null);
 const editName = ref('');
@@ -249,13 +249,13 @@ function closeEdit() {
 
 function saveEdit() {
   const item = editItem.value;
-  if (!item || item.builtin) return; // 内置只读(按钮已隐藏,双保险)
+  if (!item || item.builtin) return; // 內建只讀(按鈕已隱藏,雙保險)
   item.preset.name = editName.value.trim();
   item.preset.prompt = editPrompt.value;
   closeEdit();
 }
 
-/** 编辑弹窗里复制内置条:副本入库后关掉查看窗,让用户回到网格看到新卡。 */
+/** 編輯彈窗裡複製內建條:副本入庫後關掉檢視窗,讓使用者回到網格看到新卡。 */
 function duplicateFromEdit() {
   const item = editItem.value;
   if (!item) return;
@@ -266,10 +266,10 @@ function duplicateFromEdit() {
 
 <template>
   <ModalMask :open="open" @close="close">
-    <div class="bbi-modal am-modal" role="dialog" aria-modal="true" aria-label="画师串库">
+    <div class="bbi-modal am-modal" role="dialog" aria-modal="true" aria-label="畫師串庫">
       <header class="bbi-modal-head">
-        <span class="bbi-modal-title">画师串库</span>
-        <button class="bbi-icon-mini" type="button" title="关闭" aria-label="关闭" @click="close">
+        <span class="bbi-modal-title">畫師串庫</span>
+        <button class="bbi-icon-mini" type="button" title="關閉" aria-label="關閉" @click="close">
           <Icon name="close" />
         </button>
       </header>
@@ -279,20 +279,20 @@ function duplicateFromEdit() {
           class="bbi-input am-search"
           type="search"
           v-model="search"
-          placeholder="搜索名称或画师串内容…"
+          placeholder="搜尋名稱或畫師串內容…"
           spellcheck="false"
-          aria-label="搜索画师串"
+          aria-label="搜尋畫師串"
         />
-        <span class="am-count">共 {{ items.length }} 条</span>
+        <span class="am-count">共 {{ items.length }} 條</span>
         <button class="bbi-btn bbi-btn-primary" type="button" @click="addArtist">
           <Icon name="plus" /> 新建
         </button>
       </div>
 
       <div v-if="selected.size" class="am-batch">
-        <span class="am-batch-count">已选 {{ selected.size }} 条</span>
+        <span class="am-batch-count">已選 {{ selected.size }} 條</span>
         <button class="bbi-btn bbi-btn-sm" type="button" @click="toggleSelectAllFiltered">
-          {{ allFilteredSelected ? '取消全选' : `全选当前结果(${selectableFiltered.length})` }}
+          {{ allFilteredSelected ? '取消全選' : `全選當前結果(${selectableFiltered.length})` }}
         </button>
         <button class="bbi-btn bbi-btn-sm" type="button" @click="selected = new Set()">清空</button>
         <span class="am-batch-spacer"></span>
@@ -301,14 +301,14 @@ function duplicateFromEdit() {
           type="button"
           @click="askDeleteSelected"
         >
-          <Icon name="trash" :size="12" /> 删除所选
+          <Icon name="trash" :size="12" /> 刪除所選
         </button>
       </div>
 
       <div class="am-scroll">
         <p v-if="!filtered.length" class="am-empty">
-          <template v-if="items.length">没有匹配「{{ search }}」的画师串。</template>
-          <template v-else>还没有画师串,点右上角「新建」开始。</template>
+          <template v-if="items.length">沒有匹配「{{ search }}」的畫師串。</template>
+          <template v-else>還沒有畫師串,點右上角「新建」開始。</template>
         </p>
 
         <div v-else class="am-grid">
@@ -320,7 +320,7 @@ function duplicateFromEdit() {
               'is-active': item.preset.id === activeId,
               'is-selected': selected.has(item.preset.id),
             }"
-            :title="item.preset.id === activeId ? '当前画师串,点击停用' : '点击设为当前画师串'"
+            :title="item.preset.id === activeId ? '當前畫師串,點選停用' : '點選設為當前畫師串'"
             @click="toggleActive(item)"
           >
             <div class="am-art">
@@ -337,11 +337,11 @@ function duplicateFromEdit() {
                 class="am-art-empty"
                 type="button"
                 :disabled="uploadingId === item.preset.id"
-                title="上传预览图"
+                title="上傳預覽圖"
                 @click.stop="pickPreview(item.preset)"
               >
                 <Icon name="generate" :size="20" />
-                <span>{{ uploadingId === item.preset.id ? '上传中…' : '添加预览图' }}</span>
+                <span>{{ uploadingId === item.preset.id ? '上傳中…' : '新增預覽圖' }}</span>
               </button>
               <div v-else class="am-art-empty am-art-empty--static">
                 <Icon name="nai" :size="22" />
@@ -350,20 +350,20 @@ function duplicateFromEdit() {
               <label
                 v-if="!item.builtin"
                 class="am-check"
-                title="勾选后可批量删除"
+                title="勾選後可批次刪除"
                 @click.stop
               >
                 <input
                   type="checkbox"
                   class="bbi-checkbox"
                   :checked="selected.has(item.preset.id)"
-                  aria-label="选择此画师串"
+                  aria-label="選擇此畫師串"
                   @change="toggleSelect(item.preset.id)"
                 />
               </label>
 
               <span v-if="item.preset.id === activeId" class="am-badge is-on">使用中</span>
-              <span v-else-if="item.builtin" class="am-badge">内置</span>
+              <span v-else-if="item.builtin" class="am-badge">內建</span>
 
               <button
                 v-if="!item.builtin && item.preset.previewPath"
@@ -372,13 +372,13 @@ function duplicateFromEdit() {
                 :disabled="uploadingId === item.preset.id"
                 @click.stop="pickPreview(item.preset)"
               >
-                {{ uploadingId === item.preset.id ? '上传中…' : '更换预览图' }}
+                {{ uploadingId === item.preset.id ? '上傳中…' : '更換預覽圖' }}
               </button>
             </div>
 
             <div class="am-body">
               <div class="am-name-row">
-                <!-- 单选圈:明示「启用是单选切换」;整卡都可点,圈只是状态可视化和提示 -->
+                <!-- 單選圈:明示「啟用是單選切換」;整卡都可點,圈只是狀態視覺化和提示 -->
                 <span
                   class="am-radio"
                   :class="{ 'is-on': item.preset.id === activeId }"
@@ -387,7 +387,7 @@ function duplicateFromEdit() {
                   <Icon v-if="item.preset.id === activeId" name="check" :size="9" />
                 </span>
                 <div class="am-name" :title="item.preset.name">
-                  {{ item.preset.name || '未命名画师串' }}
+                  {{ item.preset.name || '未命名畫師串' }}
                 </div>
               </div>
               <div class="am-prompt" :title="item.preset.prompt">
@@ -397,8 +397,8 @@ function duplicateFromEdit() {
                 <button
                   class="am-op"
                   type="button"
-                  :title="item.builtin ? '查看内容(内置只读)' : '编辑名称与内容'"
-                  :aria-label="item.builtin ? '查看内容' : '编辑'"
+                  :title="item.builtin ? '檢視內容(內建只讀)' : '編輯名稱與內容'"
+                  :aria-label="item.builtin ? '檢視內容' : '編輯'"
                   @click="openEdit(item)"
                 >
                   <Icon name="edit" :size="13" />
@@ -406,8 +406,8 @@ function duplicateFromEdit() {
                 <button
                   class="am-op"
                   type="button"
-                  title="复制为我的画师串"
-                  aria-label="复制"
+                  title="複製為我的畫師串"
+                  aria-label="複製"
                   @click="duplicate(item)"
                 >
                   <Icon name="copy" :size="13" />
@@ -416,8 +416,8 @@ function duplicateFromEdit() {
                   v-if="!item.builtin"
                   class="am-op am-op-danger"
                   type="button"
-                  title="删除"
-                  aria-label="删除"
+                  title="刪除"
+                  aria-label="刪除"
                   @click="askDelete([item.preset])"
                 >
                   <Icon name="trash" :size="13" />
@@ -429,44 +429,44 @@ function duplicateFromEdit() {
       </div>
 
       <footer class="bbi-modal-foot am-foot">
-        <span class="am-foot-hint">点卡片或单选圈启用/停用;勾选左上角方框可批量删除。</span>
+        <span class="am-foot-hint">點卡片或單選圈啟用/停用;勾選左上角方框可批次刪除。</span>
         <span class="bbi-modal-foot-spacer"></span>
-        <button class="bbi-btn" type="button" @click="close">关闭</button>
+        <button class="bbi-btn" type="button" @click="close">關閉</button>
       </footer>
     </div>
   </ModalMask>
 
-  <!-- 删除确认:单条与批量共用;叠在管理器之上 -->
+  <!-- 刪除確認:單條與批次共用;疊在管理器之上 -->
   <ConfirmDialog
     v-model:open="deleteOpen"
     top-layer
-    title="删除画师串"
-    :confirm-text="deleting ? '删除中…' : '删除'"
+    title="刪除畫師串"
+    :confirm-text="deleting ? '刪除中…' : '刪除'"
     confirm-icon="trash"
     tone="danger"
     :busy="deleting"
     @confirm="confirmDelete"
   >
     <template v-if="deleteList.length === 1">
-      确定删除画师串「{{ deleteList[0]?.name || '未命名画师串' }}」?删除后无法恢复。
+      確定刪除畫師串「{{ deleteList[0]?.name || '未命名畫師串' }}」?刪除後無法恢復。
     </template>
     <template v-else>
-      确定删除选中的 {{ deleteList.length }} 条画师串?删除后无法恢复。
+      確定刪除選中的 {{ deleteList.length }} 條畫師串?刪除後無法恢復。
     </template>
   </ConfirmDialog>
 
-  <!-- 编辑/查看:名称 + 内容 + 预览图;绑定的正/负面词仍在面板里随「当前条」编辑 -->
+  <!-- 編輯/檢視:名稱 + 內容 + 預覽圖;綁定的正/負面詞仍在面板裡隨「當前條」編輯 -->
   <ModalMask :open="!!editItem" top-layer @close="closeEdit">
     <div
       v-if="editItem"
       class="bbi-modal am-edit"
       role="dialog"
       aria-modal="true"
-      :aria-label="editItem.builtin ? '查看画师串' : '编辑画师串'"
+      :aria-label="editItem.builtin ? '檢視畫師串' : '編輯畫師串'"
     >
       <header class="bbi-modal-head">
-        <span class="bbi-modal-title">{{ editItem.builtin ? '查看画师串(内置)' : '编辑画师串' }}</span>
-        <button class="bbi-icon-mini" type="button" title="关闭" aria-label="关闭" @click="closeEdit">
+        <span class="bbi-modal-title">{{ editItem.builtin ? '檢視畫師串(內建)' : '編輯畫師串' }}</span>
+        <button class="bbi-icon-mini" type="button" title="關閉" aria-label="關閉" @click="closeEdit">
           <Icon name="close" />
         </button>
       </header>
@@ -487,7 +487,7 @@ function duplicateFromEdit() {
             @click="pickPreview(editItem.preset)"
           >
             <Icon name="upload" :size="12" />
-            {{ uploadingId === editItem.preset.id ? '上传中…' : editItem.preset.previewPath ? '更换预览图' : '上传预览图' }}
+            {{ uploadingId === editItem.preset.id ? '上傳中…' : editItem.preset.previewPath ? '更換預覽圖' : '上傳預覽圖' }}
           </button>
           <button
             v-if="editItem.preset.previewPath"
@@ -495,25 +495,25 @@ function duplicateFromEdit() {
             type="button"
             @click="removePreview(editItem.preset)"
           >
-            <Icon name="trash" :size="12" /> 移除预览图
+            <Icon name="trash" :size="12" /> 移除預覽圖
           </button>
         </div>
       </div>
 
       <div class="bbi-modal-field">
-        <span class="bbi-modal-label">名称</span>
+        <span class="bbi-modal-label">名稱</span>
         <input
           class="bbi-input"
           type="text"
           v-model="editName"
           :readonly="editItem.builtin"
-          placeholder="画师串名称"
+          placeholder="畫師串名稱"
           spellcheck="false"
         />
       </div>
 
       <div class="bbi-modal-field">
-        <span class="bbi-modal-label">画师串(拼在正向提示词最前面)</span>
+        <span class="bbi-modal-label">畫師串(拼在正向提示詞最前面)</span>
         <BbiTextarea
           v-model="editPrompt"
           :rows="4"
@@ -525,21 +525,21 @@ function duplicateFromEdit() {
       </div>
 
       <p class="bbi-modal-label">
-        绑定的正面质量词「{{ editItem.preset.quality.trim() ? '已设置' : '未设置' }}」、负面提示词「{{
-          editItem.preset.negative.trim() ? '已设置' : '未设置'
-        }}」;要改它们,先在面板里把这条设为当前画师串,再点提示词区的对应行。
+        綁定的正面質量詞「{{ editItem.preset.quality.trim() ? '已設定' : '未設定' }}」、負面提示詞「{{
+          editItem.preset.negative.trim() ? '已設定' : '未設定'
+        }}」;要改它們,先在面板裡把這條設為當前畫師串,再點提示詞區的對應行。
       </p>
 
       <footer class="bbi-modal-foot">
         <button class="bbi-btn" type="button" @click="toggleActive(editItem)">
-          {{ editItem.preset.id === activeId ? '停用这条' : '设为当前画师串' }}
+          {{ editItem.preset.id === activeId ? '停用這條' : '設為當前畫師串' }}
         </button>
         <template v-if="editItem.builtin">
           <button class="bbi-btn" type="button" @click="duplicateFromEdit">
-            <Icon name="copy" /> 复制为我的画师串
+            <Icon name="copy" /> 複製為我的畫師串
           </button>
           <span class="bbi-modal-foot-spacer"></span>
-          <button class="bbi-btn bbi-btn-primary" type="button" @click="closeEdit">关闭</button>
+          <button class="bbi-btn bbi-btn-primary" type="button" @click="closeEdit">關閉</button>
         </template>
         <template v-else>
           <span class="bbi-modal-foot-spacer"></span>
@@ -560,8 +560,8 @@ function duplicateFromEdit() {
 </template>
 
 <style scoped>
-/* 管理器弹窗:比通用弹窗宽一档装卡片网格;固定高度,网格区内滚,头/工具条/底栏钉住。
-   .bbi-modal 默认 overflow-y:auto,这里改为 hidden,滚动交给 .am-scroll。 */
+/* 管理器彈窗:比通用彈窗寬一檔裝卡片網格;固定高度,網格區內滾,頭/工具條/底欄釘住。
+   .bbi-modal 預設 overflow-y:auto,這裡改為 hidden,滾動交給 .am-scroll。 */
 .am-modal {
   max-width: 760px;
   height: 86vh;
@@ -585,7 +585,7 @@ function duplicateFromEdit() {
   white-space: nowrap;
 }
 
-/* 批量操作条:有勾选时才出现,accent 浅底与常规内容分区 */
+/* 批次操作條:有勾選時才出現,accent 淺底與常規內容分割槽 */
 .am-batch {
   display: flex;
   align-items: center;
@@ -626,7 +626,7 @@ function duplicateFromEdit() {
   color: var(--bbi-ink-soft);
 }
 
-/* —— 卡片:点主体 = 启用/停用;选中态用浅底区分(与启用态的描边是两回事) —— */
+/* —— 卡片:點主體 = 啟用/停用;選中態用淺底區分(與啟用態的描邊是兩回事) —— */
 .am-card {
   display: flex;
   flex-direction: column;
@@ -651,7 +651,7 @@ function duplicateFromEdit() {
   background: var(--bbi-accent-soft);
 }
 
-/* 预览图区:固定 4:3,占位与实图同几何,卡片高度才齐 */
+/* 預覽圖區:固定 4:3,佔位與實圖同幾何,卡片高度才齊 */
 .am-art {
   position: relative;
   aspect-ratio: 4 / 3;
@@ -691,7 +691,7 @@ function duplicateFromEdit() {
   color: var(--bbi-ink-muted);
 }
 
-/* 勾选框垫一片 surface 底,压在图上也可辨认 */
+/* 勾選框墊一片 surface 底,壓在圖上也可辨認 */
 .am-check {
   position: absolute;
   top: 6px;
@@ -726,8 +726,8 @@ function duplicateFromEdit() {
   border-color: transparent;
 }
 
-/* 「更换预览图」:hover 才浮现的居中胶囊,平时不挡图;
-   触屏没有 hover,走编辑弹窗里的同款按钮(双通道,不藏死) */
+/* 「更換預覽圖」:hover 才浮現的居中膠囊,平時不擋圖;
+   觸屏沒有 hover,走編輯彈窗裡的同款按鈕(雙通道,不藏死) */
 .am-art-change {
   position: absolute;
   left: 50%;
@@ -767,7 +767,7 @@ function duplicateFromEdit() {
   gap: 6px;
   min-width: 0;
 }
-/* 单选圈:与勾选框(方形、批量)形态区分开,传达「启用是互斥单选」 */
+/* 單選圈:與勾選框(方形、批次)形態區分開,傳達「啟用是互斥單選」 */
 .am-radio {
   flex: 0 0 auto;
   display: inline-flex;
@@ -792,7 +792,7 @@ function duplicateFromEdit() {
   overflow: hidden;
   text-overflow: ellipsis;
 }
-/* 内容摘要:等宽两行截断,min-height 撑齐没填内容的卡 */
+/* 內容摘要:等寬兩行截斷,min-height 撐齊沒填內容的卡 */
 .am-prompt {
   font-family: var(--bbi-font-mono);
   font-size: 11px;
@@ -827,7 +827,7 @@ function duplicateFromEdit() {
   color: var(--bbi-accent);
   border-color: var(--bbi-accent);
 }
-/* 删除推到行尾,与编辑/复制两个「建设性」操作拉开距离 */
+/* 刪除推到行尾,與編輯/複製兩個「建設性」操作拉開距離 */
 .am-op-danger {
   margin-left: auto;
 }
@@ -848,7 +848,7 @@ function duplicateFromEdit() {
   flex: 1 1 auto;
 }
 
-/* —— 编辑/查看弹窗 —— */
+/* —— 編輯/檢視彈窗 —— */
 .am-edit {
   max-width: 560px;
 }
@@ -878,7 +878,7 @@ function duplicateFromEdit() {
   flex-wrap: wrap;
 }
 
-/* 危险按钮:与设置页/ConfirmDialog 同一口径,scoped 不跨组件故补一份 */
+/* 危險按鈕:與設定頁/ConfirmDialog 同一口徑,scoped 不跨元件故補一份 */
 .am-btn-danger {
   color: var(--bbi-danger);
   border-color: var(--bbi-line-strong);
@@ -889,7 +889,7 @@ function duplicateFromEdit() {
   background: var(--bbi-danger-soft);
 }
 
-/* 组头/弹窗里的小图标钮:与 NaiPanel 同款,scoped 不跨组件故补一份 */
+/* 組頭/彈窗裡的小圖示鈕:與 NaiPanel 同款,scoped 不跨元件故補一份 */
 .bbi-icon-mini {
   flex: 0 0 auto;
   display: inline-flex;

@@ -3,8 +3,8 @@ import { openPanel } from '@/state/ui';
 const MENU_ITEM_ID = 'bbi-menu-item';
 
 /**
- * 往 ST 的 #extensionsMenu(魔杖菜单)末尾注入"柏宝绘"入口。
- * 菜单是懒加载的,用轮询等它出现;注入一次即可。
+ * 往 ST 的 #extensionsMenu(魔杖選單)末尾註入"虎哩繪"入口。
+ * 選單是懶載入的,用輪詢等它出現;注入一次即可。
  */
 export function injectMenuButton() {
   const tryInject = () => {
@@ -14,9 +14,9 @@ export function injectMenuButton() {
 
     const $item = $(`
       <div class="extension_container interactable" tabindex="0">
-        <a id="${MENU_ITEM_ID}" class="list-group-item" href="#" title="柏宝绘">
+        <a id="${MENU_ITEM_ID}" class="list-group-item" href="#" title="虎哩繪">
           <i class="fa-solid fa-palette"></i>
-          <span>柏宝绘</span>
+          <span>虎哩繪</span>
         </a>
       </div>
     `);
@@ -24,7 +24,7 @@ export function injectMenuButton() {
     $item.on('click', (e: { preventDefault: () => void }) => {
       e.preventDefault();
       openPanel();
-      // 点击后收起魔杖菜单,贴合原生行为
+      // 點選後收起魔杖選單,貼合原生行為
       $('#extensionsMenu').hide();
     });
 

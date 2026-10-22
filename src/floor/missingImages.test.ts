@@ -19,37 +19,37 @@ beforeEach(() => {
 });
 
 describe('normalizeImagePath', () => {
-  it('解码并去掉前导斜杠,让 extra 与图库两侧的写法能相等', () => {
-    // extra 里是服务端原样返回的未编码路径,图库那边是逐段 encodeURIComponent 的
+  it('解碼並去掉前導斜槓,讓 extra 與相簿兩側的寫法能相等', () => {
+    // extra 裡是服務端原樣返回的未編碼路徑,相簿那邊是逐段 encodeURIComponent 的
     const fromExtra = '/user/images/柏宝绘_爱丽丝/bbi_a_0_b-g1.png';
     const fromGallery = 'user/images/%E6%9F%8F%E5%AE%9D%E7%BB%98_%E7%88%B1%E4%B8%BD%E4%B8%9D/bbi_a_0_b-g1.png';
     expect(normalizeImagePath(fromExtra)).toBe(normalizeImagePath(fromGallery));
   });
 
-  it('半截百分号编码不抛错,按原文比', () => {
+  it('半截百分號編碼不拋錯,按原文比', () => {
     expect(normalizeImagePath('/user/images/100%/a.png')).toBe('user/images/100%/a.png');
   });
 });
 
 describe('missingImages', () => {
-  it('标记后按归一化口径命中,编码与否都认', () => {
+  it('標記後按歸一化口徑命中,編碼與否都認', () => {
     markImageMissing('/user/images/柏宝绘_爱丽丝/a.png');
     expect(isImageMissing('user/images/%E6%9F%8F%E5%AE%9D%E7%BB%98_%E7%88%B1%E4%B8%BD%E4%B8%9D/a.png')).toBe(true);
     expect(isImageMissing('/user/images/柏宝绘_爱丽丝/a.png')).toBe(true);
   });
 
-  it('未标记的图不算缺失', () => {
+  it('未標記的圖不算缺失', () => {
     markImageMissing('/user/images/柏宝绘_爱丽丝/a.png');
     expect(isImageMissing('/user/images/柏宝绘_爱丽丝/b.png')).toBe(false);
   });
 
-  it('批量标记', () => {
+  it('批次標記', () => {
     markImagesMissing(['/user/images/f/a.png', '/user/images/f/b.png']);
     expect(isImageMissing('/user/images/f/a.png')).toBe(true);
     expect(isImageMissing('/user/images/f/b.png')).toBe(true);
   });
 
-  it('空路径既不写入也不命中', () => {
+  it('空路徑既不寫入也不命中', () => {
     markImageMissing('');
     expect(isImageMissing('')).toBe(false);
   });
@@ -58,42 +58,42 @@ describe('missingImages', () => {
 describe('confirmImageMissing', () => {
   const path = '/user/images/柏宝绘_爱丽丝/a.png';
 
-  it('服务端明确 404 才落册', async () => {
+  it('服務端明確 404 才落冊', async () => {
     vi.mocked(probeUserImage).mockResolvedValue({ exists: false });
     expect(await confirmImageMissing(path)).toBe(true);
     expect(isImageMissing(path)).toBe(true);
   });
 
-  it('探不清(网络错误/500)绝不落册', async () => {
-    // <img> 的 error 分不清「文件没了」和「网断了」。把掉线记成删除,
-    // 用户网一抖就满屏「文件已删除」,且刷新前好不了。
+  it('探不清(網路錯誤/500)絕不落冊', async () => {
+    // <img> 的 error 分不清「檔案沒了」和「網斷了」。把掉線記成刪除,
+    // 使用者網一抖就滿屏「檔案已刪除」,且重新整理前好不了。
     vi.mocked(probeUserImage).mockResolvedValue(null);
     expect(await confirmImageMissing(path)).toBe(false);
     expect(isImageMissing(path)).toBe(false);
   });
 
-  it('文件还在则不落册', async () => {
+  it('檔案還在則不落冊', async () => {
     vi.mocked(probeUserImage).mockResolvedValue({ exists: true, size: 1024 });
     expect(await confirmImageMissing(path)).toBe(false);
     expect(isImageMissing(path)).toBe(false);
   });
 
-  it('同一张图只探一次:已在册的直接返回,并发的后来者不重复发请求', async () => {
+  it('同一張圖只探一次:已在冊的直接返回,併發的後來者不重複發請求', async () => {
     let settle!: (probe: { exists: false }) => void;
     vi.mocked(probeUserImage).mockReturnValue(new Promise(resolve => { settle = resolve; }));
-    // 重水合会重挂 <img>,error 会再来一遍
+    // 重水合會重掛 <img>,error 會再來一遍
     const first = confirmImageMissing(path);
-    expect(await confirmImageMissing(path)).toBe(false); // 在途,不再发第二个 HEAD
+    expect(await confirmImageMissing(path)).toBe(false); // 在途,不再發第二個 HEAD
     settle({ exists: false });
     expect(await first).toBe(true);
     expect(vi.mocked(probeUserImage)).toHaveBeenCalledTimes(1);
 
-    expect(await confirmImageMissing(path)).toBe(true); // 已在册,直接命中
+    expect(await confirmImageMissing(path)).toBe(true); // 已在冊,直接命中
     expect(vi.mocked(probeUserImage)).toHaveBeenCalledTimes(1);
   });
 
-  it('只认 user/images 下的图:老图与外来路径一律不探', async () => {
-    // user/files 里的老图本插件不删,没有「被图库删掉」这条路径
+  it('只認 user/images 下的圖:老圖與外來路徑一律不探', async () => {
+    // user/files 裡的老圖本外掛不刪,沒有「被相簿刪掉」這條路徑
     vi.mocked(probeUserImage).mockResolvedValue({ exists: false });
     expect(await confirmImageMissing('/user/files/old.png')).toBe(false);
     expect(await confirmImageMissing('https://example.com/a.png')).toBe(false);
@@ -101,14 +101,14 @@ describe('confirmImageMissing', () => {
     expect(vi.mocked(probeUserImage)).not.toHaveBeenCalled();
   });
 
-  it('编码过的路径也认得出是 user/images,并与未编码写法同键', async () => {
+  it('編碼過的路徑也認得出是 user/images,並與未編碼寫法同鍵', async () => {
     vi.mocked(probeUserImage).mockResolvedValue({ exists: false });
     const encoded = 'user/images/%E6%9F%8F%E5%AE%9D%E7%BB%98_%E7%88%B1%E4%B8%BD%E4%B8%9D/a.png';
     expect(await confirmImageMissing(encoded)).toBe(true);
     expect(isImageMissing(path)).toBe(true);
   });
 
-  it('探测抛出时释放在途标记,下次还能重试', async () => {
+  it('探測丟擲時釋放在途標記,下次還能重試', async () => {
     vi.mocked(probeUserImage).mockRejectedValueOnce(new Error('boom'));
     await expect(confirmImageMissing(path)).rejects.toThrow('boom');
     vi.mocked(probeUserImage).mockResolvedValue({ exists: false });
@@ -116,11 +116,11 @@ describe('confirmImageMissing', () => {
   });
 });
 
-describe('响应式', () => {
+describe('響應式', () => {
   // 卡片的 liveHistory/liveStale/filesGone 全是 computed(isImageMissing(...))。
-  // 本册若退化成普通 Set,标记后卡片不会重算——图库删完图,已打开的楼层照旧显示破图,
-  // 要等下一次水合才好。这条锁的是「标记能推动 computed」,不是 Set 的语义。
-  it('标记后 computed 立刻重算', () => {
+  // 本冊若退化成普通 Set,標記後卡片不會重算——相簿刪完圖,已開啟的樓層照舊顯示破圖,
+  // 要等下一次水合才好。這條鎖的是「標記能推動 computed」,不是 Set 的語義。
+  it('標記後 computed 立刻重算', () => {
     const a = '/user/images/f/a.png';
     const gone = computed(() => isImageMissing(a));
     expect(gone.value).toBe(false);
@@ -128,7 +128,7 @@ describe('响应式', () => {
     expect(gone.value).toBe(true);
   });
 
-  it('只惊动被标记的那张,不连坐同目录的其它图', () => {
+  it('只驚動被標記的那張,不連坐同目錄的其它圖', () => {
     const b = '/user/images/f/b.png';
     const gone = computed(() => isImageMissing(b));
     expect(gone.value).toBe(false);

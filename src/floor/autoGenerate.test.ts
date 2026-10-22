@@ -62,8 +62,8 @@ describe('auto generate flags', () => {
 
 describe('shouldAutoGenerate', () => {
   it('lets auto fire on stale — the tag changed and no image matches it yet', () => {
-    // 曾经这里只放 pending,楼层「重新生成 tag」在已出过图的楼层上因此静默失效:
-    // 新 tag 写进正文了,卡片却停在旧图不动。stale 的语义正是「该出新图了」。
+    // 曾經這裡只放 pending,樓層「重新生成 tag」在已出過圖的樓層上因此靜默失效:
+    // 新 tag 寫進正文了,卡片卻停在舊圖不動。stale 的語義正是「該出新圖了」。
     expect(shouldAutoGenerate('auto', 'stale')).toBe(true);
   });
 

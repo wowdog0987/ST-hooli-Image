@@ -1,30 +1,30 @@
 import { reactive } from 'vue';
 
 /**
- * 楼层卡片「折叠态」的模块级 store。
+ * 樓層卡片「摺疊態」的模組級 store。
  *
- * 为什么必须放在组件外:与 genState.ts 同理——卡片的生命周期由水合决定,swipe、
- * 编辑消息、ST 重渲染楼层都会换锚点、卸载重挂组件,折叠态若放组件 ref 里,
- * 用户折好的图会自己弹开。key 与 genState/registry 同构(chatId|messageId|swipeId|seq),
- * 卡片重建后按 key 认领回自己的折叠态。
+ * 為什麼必須放在元件外:與 genState.ts 同理——卡片的生命週期由水合決定,swipe、
+ * 編輯訊息、ST 重渲染樓層都會換錨點、解除安裝重掛元件,摺疊態若放元件 ref 裡,
+ * 使用者摺好的圖會自己彈開。key 與 genState/registry 同構(chatId|messageId|swipeId|seq),
+ * 卡片重建後按 key 認領回自己的摺疊態。
  *
- * 为什么不写 message.extra:折叠是「临时遮蔽」性质的 UI 态,不是数据;写 extra 意味着
- * 每次折叠/展开都 saveChat() 落盘一次,代价与语义都不合适。会话内记住即可,
- * 刷新后回落到设置项「楼层图片默认折叠」(settings.ui.autoCollapseImages)。
+ * 為什麼不寫 message.extra:摺疊是「臨時遮蔽」性質的 UI 態,不是資料;寫 extra 意味著
+ * 每次摺疊/展開都 saveChat() 落盤一次,代價與語義都不合適。會話內記住即可,
+ * 重新整理後回落到設定項「樓層圖片預設摺疊」(settings.ui.autoCollapseImages)。
  *
- * 不主动清理:一个槽位只占一个布尔值,旧聊天/已删槽位的残留可忽略;
- * 且切聊天再切回来时折叠态还在,反而是用户期望的行为。
+ * 不主動清理:一個槽位只佔一個布林值,舊聊天/已刪槽位的殘留可忽略;
+ * 且切聊天再切回來時摺疊態還在,反而是使用者期望的行為。
  */
 
-/** 显式设置过折叠态的槽位;没设过的槽位回落到「默认折叠」设置项。 */
+/** 顯式設定過摺疊態的槽位;沒設過的槽位回落到「預設摺疊」設定項。 */
 const collapsed = reactive(new Map<string, boolean>());
 
-/** 当前折叠态:手动设置优先,否则用默认值(设置项「楼层图片默认折叠」)。 */
+/** 當前摺疊態:手動設定優先,否則用預設值(設定項「樓層圖片預設摺疊」)。 */
 export function isCollapsed(key: string, defaultCollapsed: boolean): boolean {
   return collapsed.get(key) ?? defaultCollapsed;
 }
 
-/** 手动设置折叠/展开(覆盖默认值,会话内有效)。 */
+/** 手動設定摺疊/展開(覆蓋預設值,會話內有效)。 */
 export function setCollapsed(key: string, value: boolean): void {
   collapsed.set(key, value);
 }

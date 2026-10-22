@@ -4,9 +4,9 @@ import { ref } from 'vue';
 
 const props = withDefaults(
   defineProps<{
-    /** 标题文本。用 #header 插槽时可留空。 */
+    /** 標題文本。用 #header 插槽時可留空。 */
     title?: string;
-    /** 初始是否展开 */
+    /** 初始是否展開 */
     open?: boolean;
   }>(),
   { title: '', open: true },
@@ -14,14 +14,14 @@ const props = withDefaults(
 
 const expanded = ref(props.open);
 
-// 用 grid-template-rows 0fr<->1fr 做高度过渡,无需测量 scrollHeight,内容自适应。
+// 用 grid-template-rows 0fr<->1fr 做高度過渡,無需測量 scrollHeight,內容自適應。
 </script>
 
 <template>
   <section class="bbi-collapsible" :class="{ 'is-open': expanded }">
     <button class="bbi-collapsible-head" type="button" :aria-expanded="expanded" @click="expanded = !expanded">
-      <!-- 默认只放标题文本;需要在标题行放徽章/元信息时用 #header 插槽覆盖
-           (插槽内不要放按钮等可交互元素——整个头本身就是一个 button)。 -->
+      <!-- 預設只放標題文本;需要在標題行放徽章/元資訊時用 #header 插槽覆蓋
+           (插槽內不要放按鈕等可互動元素——整個頭本身就是一個 button)。 -->
       <slot name="header">
         <span class="bbi-collapsible-title">{{ title }}</span>
       </slot>
@@ -74,13 +74,13 @@ const expanded = ref(props.open);
   color: var(--bbi-ink-muted);
   transition: transform var(--bbi-dur) var(--bbi-ease);
 }
-/* 用直接子代 > 限定:嵌套 Collapsible 时,外层 .is-open 不得波及内层的 outer/chevron,
-   否则内层会被外层钉死在展开态、永远收不起来。 */
+/* 用直接子代 > 限定:巢狀 Collapsible 時,外層 .is-open 不得波及內層的 outer/chevron,
+   否則內層會被外層釘死在展開態、永遠收不起來。 */
 .bbi-collapsible.is-open > .bbi-collapsible-head .bbi-collapsible-chevron {
   transform: rotate(180deg);
 }
 
-/* 高度过渡:grid 0fr -> 1fr */
+/* 高度過渡:grid 0fr -> 1fr */
 .bbi-collapsible-outer {
   display: grid;
   grid-template-rows: 0fr;
@@ -98,7 +98,7 @@ const expanded = ref(props.open);
   border-top: 1px solid var(--bbi-line);
 }
 
-/* 移动端:折叠区标题略小一号,与窄屏整体节奏更协调 */
+/* 移動端:摺疊區標題略小一號,與窄屏整體節奏更協調 */
 @media (max-width: 640px) {
   .bbi-collapsible-head {
     font-size: 13px;

@@ -1,28 +1,28 @@
 /*
- * 楼层卡片样式 v2 —— 沉浸优先:图即卡片。
+ * 樓層卡片樣式 v2 —— 沉浸優先:圖即卡片。
  *
- * 与 v1 的分歧:v1 把设置窗口的「面板语言」(边框/底色/品牌栏/头部按钮行)搬进了
- * 聊天正文,在 RP 场景里是突兀的 UI 异物,且 max-width:560px 让宽屏下图片铺不满。
- * v2 原则:
- * - 无边框、无背景面板、无品牌栏;宽度 100% 跟随楼层正文,图片自身一点圆角;
- * - 控件全部收进右上角一颗 ⋯ 收纳钮(半透明黑底圆钮):桌面 hover 在其左侧
- *   横向浮现一排,触屏点开在其下方竖排展开,图片平时只有一颗小点;
- * - 提示词收进悬浮 文本按钮唤起的面板,平时零占位;
- * - 生成中 = 磨砂遮罩绝对定位盖住舞台(旧图保留在底下),居中 spinner + 状态 + 取消,
- *   不再像 v1 那样把状态文案作为 flex 子项与图片并排互挤。
+ * 與 v1 的分歧:v1 把設定視窗的「面板語言」(邊框/底色/品牌欄/頭部按鈕行)搬進了
+ * 聊天正文,在 RP 場景裡是突兀的 UI 異物,且 max-width:560px 讓寬屏下圖片鋪不滿。
+ * v2 原則:
+ * - 無邊框、無背景面板、無品牌欄;寬度 100% 跟隨樓層正文,圖片自身一點圓角;
+ * - 控制元件全部收進右上角一顆 ⋯ 收納鈕(半透明黑底圓鈕):桌面 hover 在其左側
+ *   橫向浮現一排,觸屏點開在其下方豎排展開,圖片平時只有一顆小點;
+ * - 提示詞收進懸浮 文本按鈕喚起的面板,平時零佔位;
+ * - 生成中 = 磨砂遮罩絕對定位蓋住舞臺(舊圖保留在底下),居中 spinner + 狀態 + 取消,
+ *   不再像 v1 那樣把狀態文案作為 flex 子項與圖片並排互擠。
  *
- * 注入方式(floor/cardStyles.ts):与 theme.css 一起构造成 CSSStyleSheet,
- * 经 adoptedStyleSheets 共享给每个卡片的 shadow root——N 张卡零重复。
+ * 注入方式(floor/cardStyles.ts):與 theme.css 一起構造成 CSSStyleSheet,
+ * 經 adoptedStyleSheets 共享給每個卡片的 shadow root——N 張卡零重複。
  *
- * 卡片活在**每个锚点各自的 shadow root** 里(floor/hydrate.ts),故:
- * - 不再需要靠 .bbi- 前缀防冲突(shadow 天然隔离),前缀只为可读性保留;
- * - ST 全局样式与美化主题进不来了;
- * - 但**可继承属性**(font/color/line-height…)仍会穿透 shadow 边界,由 hydrate.ts
- *   在 host 上钉 INHERITED_RESET 切断;
- * - 自定义属性同样穿透,故 theme.css 的 data-theme='st' 仍能取到宿主 --SmartTheme*。
+ * 卡片活在**每個錨點各自的 shadow root** 裡(floor/hydrate.ts),故:
+ * - 不再需要靠 .bbi- 字首防衝突(shadow 天然隔離),字首只為可讀性保留;
+ * - ST 全域性樣式與美化主題進不來了;
+ * - 但**可繼承屬性**(font/color/line-height…)仍會穿透 shadow 邊界,由 hydrate.ts
+ *   在 host 上釘 INHERITED_RESET 切斷;
+ * - 自定義屬性同樣穿透,故 theme.css 的 data-theme='st' 仍能取到宿主 --SmartTheme*。
  *
- * 颜色/圆角一律取 theme.css 的 --bbi-* 令牌,与设置窗口同一套设计语言,不写死字面量
- * (浮钮/翻页器的半透明黑底是「压在图上」的通用解,与主题无关,除外)。
+ * 顏色/圓角一律取 theme.css 的 --bbi-* 令牌,與設定視窗同一套設計語言,不寫死字面量
+ * (浮鈕/翻頁器的半透明黑底是「壓在圖上」的通用解,與主題無關,除外)。
  */
 
 :host {
@@ -45,8 +45,8 @@
   line-height: 1.6;
 }
 
-/* ——— 舞台:图片 / 占位 / 遮罩 / 悬浮层都在这 ———
-   overflow:hidden 让骨架与遮罩跟着图片一起圆角。 */
+/* ——— 舞臺:圖片 / 佔位 / 遮罩 / 懸浮層都在這 ———
+   overflow:hidden 讓骨架與遮罩跟著圖片一起圓角。 */
 
 .bbi-figure__stage {
   position: relative;
@@ -55,7 +55,7 @@
   overflow: hidden;
 }
 
-/* 无图占位:按画幅方向预留高度,出图瞬间不跳版 */
+/* 無圖佔位:按畫幅方向預留高度,出圖瞬間不跳版 */
 .bbi-figure__stage[data-placeholder='1'] {
   background: var(--bbi-surface-2);
 }
@@ -68,22 +68,22 @@
   aspect-ratio: 3 / 2;
 }
 
-/* ——— 图片:铺满楼层宽度,高度随原图比例 ———
-   不加 max-height/object-fit:竖图就让它高。contain 会在宽盒子里留空柱、
-   cover 会裁切画面,两者都不如「原比例铺满」适合看图场景。 */
+/* ——— 圖片:鋪滿樓層寬度,高度隨原圖比例 ———
+   不加 max-height/object-fit:豎圖就讓它高。contain 會在寬盒子裡留空柱、
+   cover 會裁切畫面,兩者都不如「原比例鋪滿」適合看圖場景。 */
 
 .bbi-figure__img {
   display: block;
   width: 100%;
   height: auto;
   cursor: zoom-in;
-  /* 长按保存:抵消 ST 的 body{touch-action:none}(css/mobile-styles.css:251)。
-     另注意——图片上绝不可 preventDefault touch 事件、不可加 user-select:none,
-     否则移动端长按菜单不会出现。详见 floor/Lightbox.vue 顶部注释。 */
+  /* 長按儲存:抵消 ST 的 body{touch-action:none}(css/mobile-styles.css:251)。
+     另注意——圖片上絕不可 preventDefault touch 事件、不可加 user-select:none,
+     否則移動端長按選單不會出現。詳見 floor/Lightbox.vue 頂部註釋。 */
   touch-action: auto;
 }
 
-/* ——— 生成中遮罩:磨砂盖住整个舞台,旧图在底下隐约可见 ——— */
+/* ——— 生成中遮罩:磨砂蓋住整個舞臺,舊圖在底下隱約可見 ——— */
 
 .bbi-figure__busy {
   position: absolute;
@@ -144,7 +144,7 @@
   color: var(--bbi-accent);
 }
 
-/* ——— 无图且空闲:占位区中央的生成入口 / 配置引导 ——— */
+/* ——— 無圖且空閒:佔位區中央的生成入口 / 配置引導 ——— */
 
 .bbi-figure__pending {
   position: absolute;
@@ -194,7 +194,7 @@
   color: var(--bbi-ink-muted);
 }
 
-/* ——— stale 角标:左上角小胶囊,不再整图压暗 ——— */
+/* ——— stale 角標:左上角小膠囊,不再整圖壓暗 ——— */
 
 .bbi-figure__badge {
   position: absolute;
@@ -208,14 +208,14 @@
   color: var(--bbi-warning);
   font-size: 10.5px;
   line-height: 17px;
-  /* 不挡图片点击/长按 */
+  /* 不擋圖片點選/長按 */
   pointer-events: none;
 }
 
-/* ——— 悬浮操作组:右上角 ⋯ 收纳钮 ———
-   全平台统一:⋯ 常驻淡显,钉死在右上角(row-reverse 保证菜单展开时它不位移);
-   桌面(hover:hover)hover ⋯ 时菜单在其左侧横向浮现;
-   触屏(hover:none)点 ⋯ 菜单在其下方竖排展开,点任意操作后收起。 */
+/* ——— 懸浮操作組:右上角 ⋯ 收納鈕 ———
+   全平臺統一:⋯ 常駐淡顯,釘死在右上角(row-reverse 保證選單展開時它不位移);
+   桌面(hover:hover)hover ⋯ 時選單在其左側橫向浮現;
+   觸屏(hover:none)點 ⋯ 選單在其下方豎排展開,點任意操作後收起。 */
 
 .bbi-figure__actions {
   position: absolute;
@@ -228,9 +228,9 @@
   gap: 6px;
 }
 
-/* ⋯ 常驻淡显:功能入口不能没有,但存在感压到最低。
-   注意:绝不可用 display:none 藏它——.bbi-fab 的 display:inline-flex 声明在后面,
-   同优先级后写的赢,会把它重新点亮(曾经的 bug:桌面 ⋯ 被隐形菜单挤离角落)。 */
+/* ⋯ 常駐淡顯:功能入口不能沒有,但存在感壓到最低。
+   注意:絕不可用 display:none 藏它——.bbi-fab 的 display:inline-flex 宣告在後面,
+   同優先順序後寫的贏,會把它重新點亮(曾經的 bug:桌面 ⋯ 被隱形選單擠離角落)。 */
 .bbi-figure__more {
   opacity: 0.65;
   transition: opacity var(--bbi-dur) var(--bbi-ease);
@@ -242,8 +242,8 @@
   opacity: 1;
 }
 
-/* 菜单隐藏时 pointer-events:none:不在图上留隐形热区
-   (opacity:0 的元素仍可命中点击,会误触隐形按钮、也挡图片点按)。 */
+/* 選單隱藏時 pointer-events:none:不在圖上留隱形熱區
+   (opacity:0 的元素仍可命中點選,會誤觸隱形按鈕、也擋圖片點按)。 */
 .bbi-figure__menu {
   display: flex;
   gap: 6px;
@@ -321,13 +321,13 @@
   color: oklch(1 0 0);
 }
 
-/* 提示词面板开着时,文本钮转强调色表示「已展开」 */
+/* 提示詞面板開著時,文本鈕轉強調色表示「已展開」 */
 .bbi-fab--on {
   background: var(--bbi-accent);
   color: var(--bbi-accent-ink);
 }
 
-/* ——— 翻页器:叠在图片右下角的胶囊 ——— */
+/* ——— 翻頁器:疊在圖片右下角的膠囊 ——— */
 
 .bbi-figure__pager {
   position: absolute;
@@ -373,11 +373,11 @@
   color: oklch(1 0 0 / 0.9);
 }
 
-/* ——— 折叠动画:grid-template-rows 1fr→0fr 过渡(高度 auto 也能平滑) ———
-   折叠时舞台不卸载,只是高度归零 + 淡出,展开时 <img> 不需要重新请求。
-   不支持 grid 行过渡的老浏览器退化为即时切换,功能不受影响。
-   visibility 延迟到收起动画结束后才 hidden:折叠中的内容保持可见,
-   结束后内部按钮不再可被 Tab 聚焦;展开时立即恢复可见。 */
+/* ——— 摺疊動畫:grid-template-rows 1fr→0fr 過渡(高度 auto 也能平滑) ———
+   摺疊時舞臺不解除安裝,只是高度歸零 + 淡出,展開時 <img> 不需要重新請求。
+   不支援 grid 行過渡的老瀏覽器退化為即時切換,功能不受影響。
+   visibility 延遲到收起動畫結束後才 hidden:摺疊中的內容保持可見,
+   結束後內部按鈕不再可被 Tab 聚焦;展開時立即恢復可見。 */
 
 .bbi-figure__collapse {
   display: grid;
@@ -399,22 +399,22 @@
     visibility 0s calc(var(--bbi-dur) * 1.25);
 }
 
-/* 收起时裁掉内容;overflow:hidden 同时建起 BFC,兜住子级 margin(状态行的上外边距) */
+/* 收起時裁掉內容;overflow:hidden 同時建起 BFC,兜住子級 margin(狀態行的上外邊距) */
 .bbi-figure__collapse-inner {
   min-height: 0;
   overflow: hidden;
 }
 
-/* ——— 折叠条:收起时替代整个舞台,职责只有「占位 + 展开」 ———
-   整条是一个 <button>,点击展开;生成中/出错在条上给状态但不放操作按钮。
-   折叠条是 v-if(无离场动画),靠入场动画与舞台收起的过渡衔接。 */
+/* ——— 摺疊條:收起時替代整個舞臺,職責只有「佔位 + 展開」 ———
+   整條是一個 <button>,點選展開;生成中/出錯在條上給狀態但不放操作按鈕。
+   摺疊條是 v-if(無離場動畫),靠入場動畫與舞臺收起的過渡銜接。 */
 
 .bbi-figure__bar {
   display: flex;
   animation: bbi-bar-in var(--bbi-dur) var(--bbi-ease);
 }
 
-/* 出现时轻微淡入下移 */
+/* 出現時輕微淡入下移 */
 @keyframes bbi-bar-in {
   from {
     opacity: 0;
@@ -456,7 +456,7 @@
   opacity: 0.75;
 }
 
-/* 主文案:长提示词截断成单行省略号 */
+/* 主文案:長提示詞截斷成單行省略號 */
 .bbi-figure__bar-text {
   flex: 1 1 auto;
   min-width: 0;
@@ -480,7 +480,7 @@
   opacity: 0.55;
 }
 
-/* 折叠条上的迷你 spinner(生成中),与舞台上同构只是更小 */
+/* 摺疊條上的迷你 spinner(生成中),與舞臺上同構只是更小 */
 .bbi-figure__bar-spin {
   flex: 0 0 auto;
   width: 13px;
@@ -491,7 +491,7 @@
   animation: bbi-spin 0.8s linear infinite;
 }
 
-/* ——— 骨架屏(无图的生成中):微光扫过占位底,表示「在动」 ——— */
+/* ——— 骨架屏(無圖的生成中):微光掃過佔位底,表示「在動」 ——— */
 
 .bbi-figure__skeleton {
   position: absolute;
@@ -518,7 +518,7 @@
   }
 }
 
-/* ——— 状态行:仅出错 / 提示词已改时出现,平时零占位 ——— */
+/* ——— 狀態行:僅出錯 / 提示詞已改時出現,平時零佔位 ——— */
 
 .bbi-figure__status {
   margin: 6px 2px 0;
@@ -561,9 +561,9 @@
   background: var(--bbi-accent-soft);
 }
 
-/* ——— 提示词面板:悬浮 文本按钮唤起 ———
-   复制按钮绝对定位而非与文本并排 flex:提示词是可换行长文本,
-   并排会让按钮跟着文本高度居中飘到中间去。 */
+/* ——— 提示詞面板:懸浮 文本按鈕喚起 ———
+   複製按鈕絕對定位而非與文本並排 flex:提示詞是可換行長文本,
+   並排會讓按鈕跟著文本高度居中飄到中間去。 */
 
 .bbi-figure__prompt-box {
   position: relative;
@@ -582,7 +582,7 @@
   padding: 0;
   border: 1px solid var(--bbi-line);
   border-radius: var(--bbi-radius-pill);
-  /* 压在提示词之上,底色要盖住下面的文字 */
+  /* 壓在提示詞之上,底色要蓋住下面的文字 */
   background: var(--bbi-surface);
   color: var(--bbi-ink-muted);
   cursor: pointer;
@@ -598,7 +598,7 @@
 
 .bbi-figure__prompt {
   margin: 0;
-  /* 右侧留出复制按钮的位置(26 + 4×2),否则长 tag 会钻到按钮底下 */
+  /* 右側留出複製按鈕的位置(26 + 4×2),否則長 tag 會鑽到按鈕底下 */
   padding: 9px 40px 9px 10px;
   border-radius: var(--bbi-radius-sm);
   background: var(--bbi-surface-2);
@@ -608,7 +608,7 @@
   line-height: 1.65;
   white-space: pre-wrap;
   word-break: break-word;
-  /* 提示词要能选中复制 */
+  /* 提示詞要能選中複製 */
   user-select: text;
   max-height: 220px;
   overflow-y: auto;
@@ -627,7 +627,7 @@
   color: var(--bbi-warning);
 }
 
-/* ——— 尊重减少动效 ——— */
+/* ——— 尊重減少動效 ——— */
 @media (prefers-reduced-motion: reduce) {
   .bbi-figure__skeleton,
   .bbi-figure__spin,
@@ -636,7 +636,7 @@
     animation: none;
   }
 
-  /* 折叠动画豁免:visibility 不再延迟,收起立即隐藏 */
+  /* 摺疊動畫豁免:visibility 不再延遲,收起立即隱藏 */
   .bbi-figure__collapse,
   .bbi-figure__collapse[data-collapsed='1'] {
     transition: visibility 0s;

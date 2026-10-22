@@ -20,7 +20,7 @@ function floorMessage(ops: CharTagAutoOp[], swipe = 0, storedSwipe = swipe): STM
     is_user: false,
     is_system: false,
     mes: '正文',
-    swipes: ['正文', '另一页'],
+    swipes: ['正文', '另一頁'],
     swipe_id: swipe,
     extra: {
       [BBI_CHAR_EXTRA_KEY]: { v: 1, swipe: storedSwipe, ops },
@@ -34,26 +34,26 @@ describe('char tags store normalize', () => {
       version: 2,
       entries: [
         {
-          name: '阿黛尔',
+          name: '阿黛爾',
           fields: { sex: '1girl', hair: ' short silver hair ' },
           source: 'book',
-          desc: '银色短发',
+          desc: '銀色短髮',
         },
-        { name: ' 铁匠老周 ', fields: { sex: '1boy' }, source: 'manual' },
+        { name: ' 鐵匠老周 ', fields: { sex: '1boy' }, source: 'manual' },
       ],
     });
     expect(entries).toEqual([
       {
-        name: '阿黛尔',
+        name: '阿黛爾',
         fields: { fandom: '', sex: '1girl', hair: 'short silver hair', eyes: '', skin: '', body: '', extra: '', outfit: '' },
         raw: '',
         nl: '',
         source: 'book',
-        desc: '银色短发',
+        desc: '銀色短髮',
         history: [],
       },
       {
-        name: '铁匠老周',
+        name: '鐵匠老周',
         fields: { fandom: '', sex: '1boy', hair: '', eyes: '', skin: '', body: '', extra: '', outfit: '' },
         raw: '',
         nl: '',
@@ -67,13 +67,13 @@ describe('char tags store normalize', () => {
   it('migrates v1 legacy tags string into raw mode', () => {
     const entries = normalizeCharTagStore({
       version: 1,
-      entries: [{ name: '旧角色', tags: '1girl, red eyes', source: 'book', desc: '红瞳' }],
+      entries: [{ name: '舊角色', tags: '1girl, red eyes', source: 'book', desc: '紅瞳' }],
     });
     expect(entries).toHaveLength(1);
     expect(entries[0].raw).toBe('1girl, red eyes');
     expect(entries[0].fields).toEqual({ fandom: '', sex: '', hair: '', eyes: '', skin: '', body: '', extra: '', outfit: '' });
     expect(entries[0].source).toBe('book');
-    expect(entries[0].desc).toBe('红瞳');
+    expect(entries[0].desc).toBe('紅瞳');
   });
 
   it('drops entries without any usable content', () => {
@@ -98,7 +98,7 @@ describe('char tags store normalize', () => {
           fields: { sex: '1girl' },
           source: 'weird',
           history: [
-            { field: 'hair', from: 'long', to: 'short', reason: '剪发', floor: 42, at: 1 },
+            { field: 'hair', from: 'long', to: 'short', reason: '剪髮', floor: 42, at: 1 },
             { field: 'bogus', from: 'x', to: 'y' },
             'junk',
           ],
@@ -108,7 +108,7 @@ describe('char tags store normalize', () => {
     expect(entries).toHaveLength(1);
     expect(entries[0].source).toBe('manual');
     expect(entries[0].history).toEqual([
-      { field: 'hair', from: 'long', to: 'short', reason: '剪发', floor: 42, at: 1 },
+      { field: 'hair', from: 'long', to: 'short', reason: '剪髮', floor: 42, at: 1 },
     ]);
   });
 
@@ -116,8 +116,8 @@ describe('char tags store normalize', () => {
     const entries = normalizeCharTagStore({
       version: 2,
       entries: [
-        { name: '阿黛尔', fields: { sex: 'a' }, source: 'book', desc: 'd1' },
-        { name: '阿黛尔', fields: { sex: 'b' }, source: 'manual' },
+        { name: '阿黛爾', fields: { sex: 'a' }, source: 'book', desc: 'd1' },
+        { name: '阿黛爾', fields: { sex: 'b' }, source: 'manual' },
       ],
     });
     expect(entries).toHaveLength(1);
@@ -141,7 +141,7 @@ describe('floor-owned character changes', () => {
       source: 'ai',
       desc: '',
     })!;
-    const cutHair = createCharTagSetOp('小雪', 'hair', 'short black hair', '剪发')!;
+    const cutHair = createCharTagSetOp('小雪', 'hair', 'short black hair', '剪髮')!;
     const chat = [floorMessage([create]), floorMessage([cutHair])];
 
     expect(deriveCharTags([], chat)[0].fields.hair).toBe('short black hair');
@@ -156,9 +156,9 @@ describe('floor-owned character changes', () => {
       raw: '',
       nl: '',
       source: 'book',
-      desc: '黑色长发',
+      desc: '黑色長髮',
     })!;
-    const cutHair = createCharTagSetOp('小雪', 'hair', 'short black hair', '剪发')!;
+    const cutHair = createCharTagSetOp('小雪', 'hair', 'short black hair', '剪髮')!;
     const chat = [floorMessage([create]), floorMessage([cutHair])];
 
     chat.pop();
@@ -170,7 +170,7 @@ describe('floor-owned character changes', () => {
 
   it('ignores changes copied from another swipe', () => {
     const create = createCharTagNewOp({
-      name: '旧页角色',
+      name: '舊頁角色',
       fields: { ...emptyCharFields(), sex: '1girl' },
       raw: '',
       nl: '',
@@ -192,25 +192,25 @@ describe('global library merge & lock', () => {
     history: [],
   });
 
-  it('mergeCharTagSeed: 本聊天同名条目优先,全局只补同名空缺', () => {
+  it('mergeCharTagSeed: 本聊天同名條目優先,全域性只補同名空缺', () => {
     const chat = [globalEntry('小雪', { hair: 'short red hair' })];
     const global = [globalEntry('小雪', { hair: 'long black hair' }), globalEntry('玩家', { sex: '1boy' })];
     const merged = mergeCharTagSeed(chat, global);
     expect(merged).toHaveLength(2);
     expect(merged.find(e => e.name === '小雪')?.fields.hair).toBe('short red hair');
     expect(merged.find(e => e.name === '玩家')?.fields.sex).toBe('1boy');
-    // 无全局时原样返回(零开销路径)
+    // 無全域性時原樣返回(零開銷路徑)
     expect(mergeCharTagSeed(chat, [])).toBe(chat);
   });
 
-  it('computeLockedCharTagNames: 只有「全局独有」的名字被锁定;本聊天同名即解锁', () => {
+  it('computeLockedCharTagNames: 只有「全域性獨有」的名字被鎖定;本聊天同名即解鎖', () => {
     const global = [globalEntry('玩家', { sex: '1boy' }), globalEntry('小雪', { sex: '1girl' })];
     expect([...computeLockedCharTagNames([], global)].sort()).toEqual(['小雪', '玩家']);
     expect([...computeLockedCharTagNames([globalEntry('小雪', { sex: '1girl' })], global)]).toEqual(['玩家']);
     expect(computeLockedCharTagNames([], []).size).toBe(0);
   });
 
-  it('applyCharTagOps: 锁定名的 new 与 set 一律丢弃', () => {
+  it('applyCharTagOps: 鎖定名的 new 與 set 一律丟棄', () => {
     const locked = new Set(['玩家']);
     const create = createCharTagNewOp({
       name: '玩家',
@@ -220,18 +220,18 @@ describe('global library merge & lock', () => {
       source: 'ai',
       desc: '',
     })!;
-    const dye = createCharTagSetOp('玩家', 'hair', 'long red hair', '染发')!;
+    const dye = createCharTagSetOp('玩家', 'hair', 'long red hair', '染髮')!;
     const base = [globalEntry('玩家', { sex: '1boy', hair: 'short black hair' })];
     const out = applyCharTagOps(base, [create, dye], 3, locked);
     expect(out[0].fields.hair).toBe('short black hair');
     expect(out[0].history).toEqual([]);
-    // 不传 locked 时旧行为不变
+    // 不傳 locked 時舊行為不變
     const out2 = applyCharTagOps(base, [dye], 3);
     expect(out2[0].fields.hair).toBe('long red hair');
   });
 
-  it('deriveCharTags: 旧消息里针对锁定角色的楼层 ops 重放时失效', () => {
-    const dye = createCharTagSetOp('玩家', 'hair', 'long red hair', '染发')!;
+  it('deriveCharTags: 舊訊息裡針對鎖定角色的樓層 ops 重放時失效', () => {
+    const dye = createCharTagSetOp('玩家', 'hair', 'long red hair', '染髮')!;
     const chat = [floorMessage([dye])];
     const base = [globalEntry('玩家', { sex: '1boy', hair: 'short black hair' })];
     expect(deriveCharTags(base, chat, chat.length, new Set(['玩家']))[0].fields.hair).toBe('short black hair');

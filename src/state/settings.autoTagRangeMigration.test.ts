@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 /**
- * 单楼图片数量由单一 maxImages 升级为 minImages～maxImages。
- * 存量用户不能因为升级被突然强制每楼出图，因此缺少 minImages 必须迁移为 0；
- * 脏范围也要在 hydrate 时归一，避免提示词与解析器收到 min > max。
+ * 單樓圖片數量由單一 maxImages 升級為 minImages～maxImages。
+ * 存量使用者不能因為升級被突然強制每樓出圖，因此缺少 minImages 必須遷移為 0；
+ * 髒範圍也要在 hydrate 時歸一，避擴音示詞與解析器收到 min > max。
  */
 const mocks = vi.hoisted(() => ({
   context: null as Record<string, any> | null,
@@ -23,26 +23,26 @@ async function hydrateWithAutoTag(autoTag: Record<string, unknown> | undefined) 
   return settings.autoTag;
 }
 
-describe('自动 tag 图片数量范围迁移', () => {
+describe('自動 tag 圖片數量範圍遷移', () => {
   beforeEach(() => {
     vi.resetModules();
     vi.stubGlobal('toastr', { info: vi.fn(), success: vi.fn(), error: vi.fn() });
     vi.stubGlobal('window', { addEventListener: vi.fn(), dispatchEvent: vi.fn() });
   });
 
-  it('旧配置只有 maxImages 时补 minImages=0,保留允许无图的行为', async () => {
+  it('舊配置只有 maxImages 時補 minImages=0,保留允許無圖的行為', async () => {
     const autoTag = await hydrateWithAutoTag({ maxImages: 5 });
     expect(autoTag.minImages).toBe(0);
     expect(autoTag.maxImages).toBe(5);
   });
 
-  it('新装默认范围为 0～2', async () => {
+  it('新裝預設範圍為 0～2', async () => {
     const autoTag = await hydrateWithAutoTag(undefined);
     expect(autoTag.minImages).toBe(0);
     expect(autoTag.maxImages).toBe(2);
   });
 
-  it('把下限夹进 0～上限,并保证上限至少为 1', async () => {
+  it('把下限夾進 0～上限,並保證上限至少為 1', async () => {
     const tooHigh = await hydrateWithAutoTag({ minImages: 9, maxImages: 3 });
     expect(tooHigh.minImages).toBe(3);
     expect(tooHigh.maxImages).toBe(3);

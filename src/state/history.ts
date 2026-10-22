@@ -5,65 +5,65 @@ import type { ImageCharacterPrompt } from '@/autoTag/protocol';
 import type { Orientation } from '@/backends/size';
 
 /**
- * 请求历史(副 API 推理 + 生图)的模块级内存 store。
+ * 請求歷史(副 API 推理 + 生圖)的模組級記憶體 store。
  *
- * **刻意不持久化**:刷新页面即清空,不进 settings、不落 localStorage。
- * 这是调试辅助——出问题时回看这一轮发了什么、收到什么,而不是要长期保存的资产。
- * 想留证据请在页面里复制出去。
+ * **刻意不持久化**:重新整理頁面即清空,不進 settings、不落 localStorage。
+ * 這是除錯輔助——出問題時回看這一輪發了什麼、收到什麼,而不是要長期儲存的資產。
+ * 想留證據請在頁面裡複製出去。
  *
- * 为什么放模块级而非组件里:请求由 autoTag/Card 等处发起,历史页可能压根没打开过;
- * 记录必须活得比任何组件都长。与 floor/genState.ts 同构。
+ * 為什麼放模組級而非元件裡:請求由 autoTag/Card 等處發起,歷史頁可能壓根沒開啟過;
+ * 記錄必須活得比任何元件都長。與 floor/genState.ts 同構。
  *
- * 【重要】本模块的所有写入函数都必须是「不会抛」的:调用方在真实业务路径上
- * (发请求、出图),历史记录失败绝不能连累主流程。故 record() 内部吞异常,
- * 且调用方仍应用 safe*() 包装(见 api/client.ts 的用法)。
+ * 【重要】本模組的所有寫入函式都必須是「不會拋」的:呼叫方在真實業務路徑上
+ * (發請求、出圖),歷史記錄失敗絕不能連累主流程。故 record() 內部吞異常,
+ * 且呼叫方仍應用 safe*() 包裝(見 api/client.ts 的用法)。
  */
 
-/** 条数上限。副 API 的提示词很大(世界书+角色库+正文),不封顶几十条就是几十 MB。 */
+/** 條數上限。副 API 的提示詞很大(世界書+角色庫+正文),不封頂幾十條就是幾十 MB。 */
 const MAX_RECORDS = 50;
 
 /**
- * 单条文本留存上限。超出截断并标注原长——
- * buildAutoTagMessages 拼出的 system 提示词轻松上万字,50 条全量留存内存吃不消。
+ * 單條文本留存上限。超出截斷並標註原長——
+ * buildAutoTagMessages 拼出的 system 提示詞輕鬆上萬字,50 條全量留存記憶體吃不消。
  */
 const MAX_CONTENT = 20_000;
 
 export type HistoryKind = 'llm' | 'image';
 
-/** running 是进行中;aborted 是用户主动取消(与 error 分开,不是故障)。 */
+/** running 是進行中;aborted 是使用者主動取消(與 error 分開,不是故障)。 */
 export type HistoryStatus = 'running' | 'ok' | 'error' | 'aborted';
 
 interface BaseRecord {
-  /** 自增序号,**不用 Date.now()**:同一毫秒内并发的多个请求会撞成同一 id。 */
+  /** 自增序號,**不用 Date.now()**:同一毫秒內併發的多個請求會撞成同一 id。 */
   id: number;
   kind: HistoryKind;
   status: HistoryStatus;
   startedAt: number;
-  /** 完成后才有;进行中为 null。 */
+  /** 完成後才有;進行中為 null。 */
   durationMs: number | null;
-  /** status='error' 时的错误信息,其余为空串。 */
+  /** status='error' 時的錯誤資訊,其餘為空串。 */
   error: string;
 }
 
 export interface LlmRecord extends BaseRecord {
   kind: 'llm';
-  /** 用途标签:'自动 tag' / '角色外貌转换' / 'ComfyUI 工作流配置' 等,由调用点传入。 */
+  /** 用途標籤:'自動 tag' / '角色外貌轉換' / 'ComfyUI 工作流配置' 等,由呼叫點傳入。 */
   source: string;
-  /** 渠道名;未指派渠道(跟随主 API)时为 FOLLOW_MAIN_API。 */
+  /** 渠道名;未指派渠道(跟隨主 API)時為 FOLLOW_MAIN_API。 */
   channelName: string;
   model: string;
   stream: boolean;
-  /** 完整提示词(已按 MAX_CONTENT 截断)。 */
+  /** 完整提示詞(已按 MAX_CONTENT 截斷)。 */
   messages: ChatMsg[];
-  /** 返回正文(已截断)。 */
+  /** 返回正文(已截斷)。 */
   response: string;
   promptTokens: number | null;
   completionTokens: number | null;
   /**
-   * token 数是否为本地估算。
-   * 真值只在「自建渠道 + 非流式」时拿得到(ST 代理原样透传上游 usage);
-   * 流式与跟随主 API 只能用 ST 分词器估——而它用的是**主界面当前模型**的分词器,
-   * 与副 API 渠道模型未必同源。故 UI 必须用 ≈ 区分,不能与真值混显。
+   * token 數是否為本地估算。
+   * 真值只在「自建渠道 + 非流式」時拿得到(ST 代理原樣透傳上游 usage);
+   * 流式與跟隨主 API 只能用 ST 分詞器估——而它用的是**主介面當前模型**的分詞器,
+   * 與副 API 渠道模型未必同源。故 UI 必須用 ≈ 區分,不能與真值混顯。
    */
   tokensEstimated: boolean;
 }
@@ -71,7 +71,7 @@ export interface LlmRecord extends BaseRecord {
 export interface ImageRecord extends BaseRecord {
   kind: 'image';
   backend: 'nai' | 'comfyui';
-  /** NAI 模型名 / ComfyUI 当前工作流预设名。 */
+  /** NAI 模型名 / ComfyUI 當前工作流預設名。 */
   model: string;
   prompt: string;
   nl: string;
@@ -79,51 +79,51 @@ export interface ImageRecord extends BaseRecord {
   characters: ImageCharacterPrompt[];
   seed: number;
   size: Orientation;
-  /** 楼层坐标:详情里据此指回是哪一楼哪个槽位。图片本身不存(见文件头)。 */
+  /** 樓層座標:詳情裡據此指回是哪一樓哪個槽位。圖片本身不存(見檔案頭)。 */
   floor: number;
   seq: number;
 }
 
 export type HistoryRecord = LlmRecord | ImageRecord;
 
-/** 跟随主 API 时的渠道名占位。 */
-export const FOLLOW_MAIN_API = '跟随主 API';
+/** 跟隨主 API 時的渠道名佔位。 */
+export const FOLLOW_MAIN_API = '跟隨主 API';
 
 /**
- * 全部记录,**新的在前**(页面直接 v-for,不用每次 reverse)。
- * 因此「丢最旧」= 从尾部 pop。
+ * 全部記錄,**新的在前**(頁面直接 v-for,不用每次 reverse)。
+ * 因此「丟最舊」= 從尾部 pop。
  */
 export const records = reactive<HistoryRecord[]>([]);
 
 let nextId = 1;
 
-/** 超长文本截断并标注原长;短文本原样返回(不产生新字符串)。 */
+/** 超長文本截斷並標註原長;短文本原樣返回(不產生新字串)。 */
 export function truncate(text: string): string {
   if (typeof text !== 'string') return '';
   if (text.length <= MAX_CONTENT) return text;
-  return `${text.slice(0, MAX_CONTENT)}\n…(已截断，原长 ${text.length} 字符)`;
+  return `${text.slice(0, MAX_CONTENT)}\n…(已截斷，原長 ${text.length} 字元)`;
 }
 
-/** 中日韩表意文字/假名/谚文/全角标点:这些大致 1 字 = 1 token。 */
+/** 中日韓表意文字/假名/諺文/全形標點:這些大致 1 字 = 1 token。 */
 const CJK_PATTERN =
-  /[　-〿぀-ヿ㐀-䶿一-鿿가-힯豈-﫿＀-￯]/;
+  /[　-〿぀-ヿ㐀-䶿一-鿿가-힯豈-﫿＀-￯]/;
 
 /**
- * 单段文本的 token 粗估(同步、纯本地)。
+ * 單段文本的 token 粗估(同步、純本地)。
  *
- * 为什么不用 ST 的 getTokenCountAsync:那是异步 HTTP(打 /api/tokenizers/…),
- * 展开一条 8 段的记录就是 8 个请求;而这里的数字只用于**段与段之间比大小**
- * (「哪段把提示词撑爆了」),不需要精确。
+ * 為什麼不用 ST 的 getTokenCountAsync:那是非同步 HTTP(打 /api/tokenizers/…),
+ * 展開一條 8 段的記錄就是 8 個請求;而這裡的數字只用於**段與段之間比大小**
+ * (「哪段把提示詞撐爆了」),不需要精確。
  *
- * 口径:中日韩按 1 字 1 token,其余(拉丁字母/数字/符号)按 4 字符 1 token——
- * BPE 分词器的通用经验值。**必然与真实用量有出入**,故 UI 上一律带 ≈ 显示,
- * 也不要拿各段之和去对标题行那个真值(那是上游 usage,口径不同)。
+ * 口徑:中日韓按 1 字 1 token,其餘(拉丁字母/數字/符號)按 4 字元 1 token——
+ * BPE 分詞器的通用經驗值。**必然與真實用量有出入**,故 UI 上一律帶 ≈ 顯示,
+ * 也不要拿各段之和去對標題行那個真值(那是上游 usage,口徑不同)。
  */
 export function roughTokens(text: string): number {
   if (!text) return 0;
   let cjk = 0;
   let rest = 0;
-  // for...of 按码点遍历,代理对(emoji/罕见汉字)算一个字符而非两个
+  // for...of 按碼點遍歷,代理對(emoji/罕見漢字)算一個字元而非兩個
   for (const ch of text) {
     if (CJK_PATTERN.test(ch)) cjk++;
     else rest++;
@@ -136,15 +136,15 @@ function truncateMessages(messages: ChatMsg[]): ChatMsg[] {
   return messages.map(m => ({ role: m.role, content: truncate(m.content) }));
 }
 
-/** 压入一条并维持封顶。新记录进头部,超出时从尾部(最旧)丢弃。 */
+/** 壓入一條並維持封頂。新記錄進頭部,超出時從尾部(最舊)丟棄。 */
 function push(record: HistoryRecord): void {
   records.unshift(record);
   while (records.length > MAX_RECORDS) records.pop();
 }
 
 /**
- * 按 id 找记录。返回 undefined 表示已被挤出封顶——
- * 长请求期间若前面涌进 50 条新记录,它就没了,此时 finish/fail 是安全空操作。
+ * 按 id 找記錄。返回 undefined 表示已被擠出封頂——
+ * 長請求期間若前面湧進 50 條新記錄,它就沒了,此時 finish/fail 是安全空操作。
  */
 function find(id: number): HistoryRecord | undefined {
   return records.find(r => r.id === id);
@@ -158,7 +158,7 @@ export interface LlmBegin {
   messages: ChatMsg[];
 }
 
-/** 登记一次副 API 请求,返回 id 供后续 finish/fail。 */
+/** 登記一次副 API 請求,返回 id 供後續 finish/fail。 */
 export function beginLlm(info: LlmBegin): number {
   const id = nextId++;
   push({
@@ -200,8 +200,8 @@ export function finishLlm(id: number, info: LlmFinish): void {
 }
 
 /**
- * 请求失败或被取消。aborted 与 error 分开:前者是用户主动取消,不是故障,
- * UI 用中性色而非红色。
+ * 請求失敗或被取消。aborted 與 error 分開:前者是使用者主動取消,不是故障,
+ * UI 用中性色而非紅色。
  */
 export function failLlm(id: number, message: string, aborted = false): void {
   const record = find(id);
@@ -211,11 +211,11 @@ export function failLlm(id: number, message: string, aborted = false): void {
   record.error = aborted ? '' : message;
 }
 
-/** 估算 token 补录:请求已成功但真值拿不到时,估算结果晚于 finishLlm 到达。 */
+/** 估算 token 補錄:請求已成功但真值拿不到時,估算結果晚於 finishLlm 到達。 */
 export function patchLlmTokens(id: number, promptTokens: number | null, completionTokens: number | null): void {
   const record = find(id);
   if (record?.kind !== 'llm') return;
-  // 已有真值时不覆盖(非流式路径拿到了 usage,估算结果作废)
+  // 已有真值時不覆蓋(非流式路徑拿到了 usage,估算結果作廢)
   if (!record.tokensEstimated && record.promptTokens !== null) return;
   record.promptTokens = promptTokens;
   record.completionTokens = completionTokens;
@@ -235,7 +235,7 @@ export interface ImageBegin {
   seq: number;
 }
 
-/** 登记一次生图请求。图片结果不进 store(dataURL 会爆内存,且图已落盘进 ST)。 */
+/** 登記一次生圖請求。圖片結果不進 store(dataURL 會爆記憶體,且圖已落盤進 ST)。 */
 export function beginImage(info: ImageBegin): number {
   const id = nextId++;
   push({
@@ -278,31 +278,31 @@ export function failImage(id: number, message: string, aborted = false): void {
   record.error = aborted ? '' : message;
 }
 
-/** 清空(页面上的「清空」按钮)。 */
+/** 清空(頁面上的「清空」按鈕)。 */
 export function clearHistory(): void {
   records.splice(0, records.length);
 }
 
-/** 测试用:复位到干净状态(含 id 计数器)。 */
+/** 測試用:復位到乾淨狀態(含 id 計數器)。 */
 export function resetHistory(): void {
   clearHistory();
   nextId = 1;
 }
 
-/** 测试用:暴露封顶常量,免得单测里写死数字与实现脱节。 */
+/** 測試用:暴露封頂常量,免得單測裡寫死數字與實現脫節。 */
 export const HISTORY_LIMITS = { MAX_RECORDS, MAX_CONTENT } as const;
 
 /**
- * 埋点调用的统一包装:记录失败一律静默降级,**绝不向上抛**。
+ * 埋點呼叫的統一包裝:記錄失敗一律靜默降級,**絕不向上拋**。
  *
- * 历史是调试辅助,而调用点全在真实业务路径上(发请求、出图)——
- * 让记录逻辑把生图/tag 搞挂是本末倒置。所有 begin/finish/fail 都该经过这里。
+ * 歷史是除錯輔助,而呼叫點全在真實業務路徑上(發請求、出圖)——
+ * 讓記錄邏輯把生圖/tag 搞掛是本末倒置。所有 begin/finish/fail 都該經過這裡。
  */
 export function safeHistory<T>(fn: () => T): T | null {
   try {
     return fn();
   } catch (e) {
-    console.debug('[柏宝绘] 请求历史记录失败(已忽略)', e);
+    console.debug('[虎哩繪] 請求歷史記錄失敗(已忽略)', e);
     return null;
   }
 }

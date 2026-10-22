@@ -1,8 +1,8 @@
 /**
- * 复制到剪贴板 —— 全项目统一入口。
+ * 複製到剪貼簿 —— 全專案統一入口。
  *
- * 手机常用局域网 HTTP 地址访问 ST，此时异步 Clipboard API 不可用；回退到隐藏
- * textarea + execCommand，和 ST 自身的复制工具保持同一兼容策略。
+ * 手機常用區域網 HTTP 地址訪問 ST，此時非同步 Clipboard API 不可用；回退到隱藏
+ * textarea + execCommand，和 ST 自身的複製工具保持同一相容策略。
  */
 function legacyCopy(text: string): boolean {
   const textArea = document.createElement('textarea');
@@ -22,7 +22,7 @@ function legacyCopy(text: string): boolean {
   }
 }
 
-export async function copyText(text: string, okMessage = '已复制'): Promise<boolean> {
+export async function copyText(text: string, okMessage = '已複製'): Promise<boolean> {
   if (!text) return false;
 
   try {
@@ -36,10 +36,10 @@ export async function copyText(text: string, okMessage = '已复制'): Promise<b
       throw new Error('Clipboard copy failed');
     }
 
-    toastr.success(okMessage, '柏宝绘');
+    toastr.success(okMessage, '虎哩繪');
     return true;
   } catch {
-    toastr.error('复制失败，请手动选择文本', '柏宝绘');
+    toastr.error('複製失敗，請手動選擇文本', '虎哩繪');
     return false;
   }
 }

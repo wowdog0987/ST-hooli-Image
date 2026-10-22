@@ -3,11 +3,11 @@ import { describe, expect, it } from 'vitest';
 import { injectImageTags, parseImagePlan as parseImagePlanWithRange } from '@/autoTag/protocol';
 
 const segments = [
-  { id: 'P1', sourceLine: 0, text: '第一幕结束' },
-  { id: 'P2', sourceLine: 2, text: '第二幕结束' },
+  { id: 'P1', sourceLine: 0, text: '第一幕結束' },
+  { id: 'P2', sourceLine: 2, text: '第二幕結束' },
 ];
 
-/** 大部分协议测试关注内容解析,沿用允许 0 张的默认范围;数量下限另列专门用例。 */
+/** 大部分協議測試關注內容解析,沿用允許 0 張的預設範圍;數量下限另列專門用例。 */
 function parseImagePlan(
   raw: string,
   targetSegments: typeof segments,
@@ -18,7 +18,7 @@ function parseImagePlan(
 
 describe('auto tag position protocol', () => {
   it('parses a fenced JSON response and applies the local maximum', () => {
-    const raw = `说明文字\n\`\`\`json
+    const raw = `說明文字\n\`\`\`json
 {"images":[{"position":"P1","tag":"first scene"},{"position":"P2","tag":"second scene"}]}
 \`\`\``;
     expect(parseImagePlan(raw, segments, 1)).toEqual({
@@ -37,7 +37,7 @@ describe('auto tag position protocol', () => {
         2,
         3,
       ),
-    ).toThrow('少于设置的最少图片数 2');
+    ).toThrow('少於設定的最少圖片數 2');
   });
 
   it('accepts an empty image list when the configured minimum is zero', () => {
@@ -120,15 +120,15 @@ describe('auto tag position protocol', () => {
   });
 
   it('falls back to portrait for a missing or garbled size instead of throwing', () => {
-    // 为方向抛错会白白吃掉 runner 的重试次数,所以一律容忍降级
+    // 為方向拋錯會白白吃掉 runner 的重試次數,所以一律容忍降級
     expect(parseImagePlan('{"images":[{"position":"P1","tag":"a"}]}', segments, 1).images[0].size).toBe('portrait');
-    expect(parseImagePlan('{"images":[{"position":"P1","tag":"a","size":"随便"}]}', segments, 1).images[0].size).toBe('portrait');
+    expect(parseImagePlan('{"images":[{"position":"P1","tag":"a","size":"隨便"}]}', segments, 1).images[0].size).toBe('portrait');
     expect(parseImagePlan('{"images":[{"position":"P1","tag":"a","size":123}]}', segments, 1).images[0].size).toBe('portrait');
   });
 
   it('still reads the orientation out of loose Chinese wording', () => {
-    expect(parseImagePlan('{"images":[{"position":"P1","tag":"a","size":"横屏"}]}', segments, 1).images[0].size).toBe('landscape');
-    expect(parseImagePlan('{"images":[{"position":"P1","tag":"a","size":"竖版"}]}', segments, 1).images[0].size).toBe('portrait');
+    expect(parseImagePlan('{"images":[{"position":"P1","tag":"a","size":"橫屏"}]}', segments, 1).images[0].size).toBe('landscape');
+    expect(parseImagePlan('{"images":[{"position":"P1","tag":"a","size":"豎版"}]}', segments, 1).images[0].size).toBe('portrait');
   });
 
   it('accepts orientation/aspect as aliases of size', () => {
@@ -150,19 +150,19 @@ describe('auto tag position protocol', () => {
   it('rejects positions missing from the target source', () => {
     expect(() =>
       parseImagePlan('{"images":[{"position":"P9","tag":"scene"}]}', segments, 2),
-    ).toThrow('不在目标正文');
+    ).toThrow('不在目標正文');
   });
 
   it('rejects malformed position IDs', () => {
     expect(() =>
       parseImagePlan('{"images":[{"position":"第二段","tag":"scene"}]}', segments, 2),
-    ).toThrow('P编号');
+    ).toThrow('P編號');
   });
 
   it('rejects nested bbi tags in prompts', () => {
     expect(() =>
       parseImagePlan(
-        '{"images":[{"position":"P1","tag":"<bbi_image>bad</bbi_image>"}]}',
+        '{"images":[{"position":"P1","tag":"<hooli_image>bad</hooli_image>"}]}',
         segments,
         1,
       ),
@@ -204,7 +204,7 @@ describe('auto tag position protocol', () => {
         { position: 'P1', sourceLine: 0, tag: 'prompt b', nl: '', negative: '', characters: [], size: 'landscape' },
       ]),
     ).toBe(
-      '第一行\n<bbi_image>prompt a<size>portrait</size></bbi_image>\n<bbi_image>prompt b<size>landscape</size></bbi_image>\n第二行',
+      '第一行\n<hooli_image>prompt a<size>portrait</size></hooli_image>\n<hooli_image>prompt b<size>landscape</size></hooli_image>\n第二行',
     );
   });
 
@@ -222,7 +222,7 @@ describe('auto tag position protocol', () => {
         },
       ]),
     ).toBe(
-      '第一行\n<bbi_image>1girl, moonlight<nl>A girl in moonlight.</nl><size>portrait</size></bbi_image>',
+      '第一行\n<hooli_image>1girl, moonlight<nl>A girl in moonlight.</nl><size>portrait</size></hooli_image>',
     );
   });
 
@@ -240,7 +240,7 @@ describe('auto tag position protocol', () => {
         },
       ]),
     ).toBe(
-      '第一行\n<bbi_image>1girl<negative>extra people, duplicate character</negative><size>portrait</size></bbi_image>',
+      '第一行\n<hooli_image>1girl<negative>extra people, duplicate character</negative><size>portrait</size></hooli_image>',
     );
   });
 
@@ -260,7 +260,7 @@ describe('auto tag position protocol', () => {
         { position: 'P2', sourceLine: 2, tag: 'prompt c', nl: '', negative: '', characters: [], size: 'portrait' },
       ]),
     ).toBe(
-      '第一行\r\n<bbi_image>prompt a<size>portrait</size></bbi_image>\r\n\r\n第三行\r\n<bbi_image>prompt c<size>portrait</size></bbi_image>',
+      '第一行\r\n<hooli_image>prompt a<size>portrait</size></hooli_image>\r\n\r\n第三行\r\n<hooli_image>prompt c<size>portrait</size></hooli_image>',
     );
   });
 });
@@ -268,14 +268,14 @@ describe('auto tag position protocol', () => {
 describe('changes parsing', () => {
   it('parses valid character changes alongside images', () => {
     const raw =
-      '{"images":[{"position":"P1","tag":"@小雪"}],"changes":[{"name":"小雪","field":"hair","value":"short black hair","position":"P2","reason":"剪了短发"}]}';
+      '{"images":[{"position":"P1","tag":"@小雪"}],"changes":[{"name":"小雪","field":"hair","value":"short black hair","position":"P2","reason":"剪了短髮"}]}';
     expect(parseImagePlan(raw, segments, 1).changes).toEqual([
       {
         name: '小雪',
         field: 'hair',
         value: 'short black hair',
         nl: undefined,
-        reason: '剪了短发',
+        reason: '剪了短髮',
         position: 'P2',
         sourceLine: 2,
       },
@@ -284,14 +284,14 @@ describe('changes parsing', () => {
 
   it('accepts structured new-entry changes with required identity fields', () => {
     const raw =
-      '{"images":[],"changes":[{"name":"结构角色","field":"new","fields":{"sex":"1girl","hair":"long blonde hair","eyes":"blue eyes","bogus":"drop"},"position":"P1","reason":"建档"}]}';
+      '{"images":[],"changes":[{"name":"結構角色","field":"new","fields":{"sex":"1girl","hair":"long blonde hair","eyes":"blue eyes","bogus":"drop"},"position":"P1","reason":"建檔"}]}';
     expect(parseImagePlan(raw, segments, 1).changes).toEqual([
       {
-        name: '结构角色',
+        name: '結構角色',
         field: 'new',
         value: '{"sex":"1girl","hair":"long blonde hair","eyes":"blue eyes"}',
         nl: undefined,
-        reason: '建档',
+        reason: '建檔',
         position: 'P1',
         sourceLine: 0,
       },
@@ -299,26 +299,26 @@ describe('changes parsing', () => {
   });
 
   it('drops unusable new profiles without failing the whole plan', () => {
-    // 建档坏一条只该丢这条:为它作废整次输出会连图一起没有,那是更坏的结果
+    // 建檔壞一條只該丟這條:為它作廢整次輸出會連圖一起沒有,那是更壞的結果
     const raw =
-      '{"images":[{"position":"P1","tag":"a"}],"changes":[{"name":"旧格式","field":"new","value":"1girl, red eyes","position":"P1"},{"name":"缺瞳色","field":"new","fields":{"hair":"long black hair"},"position":"P1"}]}';
+      '{"images":[{"position":"P1","tag":"a"}],"changes":[{"name":"舊格式","field":"new","value":"1girl, red eyes","position":"P1"},{"name":"缺瞳色","field":"new","fields":{"hair":"long black hair"},"position":"P1"}]}';
     const plan = parseImagePlan(raw, segments, 1);
     expect(plan.changes).toEqual([]);
     expect(plan.images).toHaveLength(1);
   });
 
   it('treats a new profile as floor-wide, defaulting a missing or unknown position', () => {
-    // 建档不是「从某处开始」的变化,位置只作记录 —— 缺了/坏了都不该丢掉这条档案
+    // 建檔不是「從某處開始」的變化,位置只作記錄 —— 缺了/壞了都不該丟掉這條檔案
     const raw =
-      '{"images":[],"changes":[{"name":"无位置","field":"new","fields":{"hair":"silver hair","eyes":"red eyes"}},{"name":"坏位置","field":"new","fields":{"hair":"black hair","eyes":"blue eyes"},"position":"P9"}]}';
+      '{"images":[],"changes":[{"name":"無位置","field":"new","fields":{"hair":"silver hair","eyes":"red eyes"}},{"name":"壞位置","field":"new","fields":{"hair":"black hair","eyes":"blue eyes"},"position":"P9"}]}';
     expect(parseImagePlan(raw, segments, 1).changes).toMatchObject([
-      { name: '无位置', field: 'new', position: 'P1', sourceLine: 0 },
-      { name: '坏位置', field: 'new', position: 'P1', sourceLine: 0 },
+      { name: '無位置', field: 'new', position: 'P1', sourceLine: 0 },
+      { name: '壞位置', field: 'new', position: 'P1', sourceLine: 0 },
     ]);
   });
 
   it('drops permanent changes without a valid effective position', () => {
-    // 永久变化必须知道从哪一格开始生效,位置坏 = 无法定位 = 丢弃(但不连累 images)
+    // 永久變化必須知道從哪一格開始生效,位置壞 = 無法定位 = 丟棄(但不連累 images)
     const raw =
       '{"images":[{"position":"P1","tag":"a"}],"changes":[{"name":"小雪","field":"hair","value":"red hair"},{"name":"小雪","field":"eyes","value":"red eyes","position":"P9"}]}';
     const plan = parseImagePlan(raw, segments, 1);

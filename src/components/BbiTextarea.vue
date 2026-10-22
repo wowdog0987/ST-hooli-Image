@@ -2,34 +2,34 @@
 import { nextTick, onBeforeUnmount, onMounted, ref, useAttrs, watch } from 'vue';
 
 /**
- * 自适应高度 textarea(默认一行,内容超出按内容长高,封顶后内部滚动)。
+ * 自適應高度 textarea(預設一行,內容超出按內容長高,封頂後內部滾動)。
  *
- * 为什么做成组件:此前各页散装「textarea + v-autosize 指令 + 自配 max-height class」,
- * 口径不一还各有缺口。组件统一收口:
- * - 行数口径:props.rows 起始行、maxRows 封顶行,以 lineHeight 换算像素,
- *   不再让调用方自己写 max-height。
- * - v-model 按 Vue 原生 textarea 口径用 compositionstart/end 挡 IME 拼音串,
- *   这是指令版(v-autosize)没有的。
- * - ResizeObserver 监听自身宽度变化(窗口缩放/抽屉拖动)后重量,
- *   Book 那边窄窗口下手动拖宽后高度不回落就是漏了这个。
- * - focus()/insertAtCursor() 暴露给调用方(提示词弹窗的宏插入依赖光标操作)。
+ * 為什麼做成元件:此前各頁散裝「textarea + v-autosize 指令 + 自配 max-height class」,
+ * 口徑不一還各有缺口。元件統一收口:
+ * - 行數口徑:props.rows 起始行、maxRows 封頂行,以 lineHeight 換算畫素,
+ *   不再讓呼叫方自己寫 max-height。
+ * - v-model 按 Vue 原生 textarea 口徑用 compositionstart/end 擋 IME 拼音串,
+ *   這是指令版(v-autosize)沒有的。
+ * - ResizeObserver 監聽自身寬度變化(視窗縮放/抽屜拖動)後重量,
+ *   Book 那邊窄視窗下手動拖寬後高度不回落就是漏了這個。
+ * - focus()/insertAtCursor() 暴露給呼叫方(提示詞彈窗的宏插入依賴游標操作)。
  *
- * 高度测量与指令版同思路:height 先归零再读 scrollHeight(归零是必须的,
- * 否则内容减少时 scrollHeight 不回落),写回时再夹在 [min,max] 之间。
- * 挂载/更新都等一帧再量,避免编辑回填时读到塌陷中的布局。
+ * 高度測量與指令版同思路:height 先歸零再讀 scrollHeight(歸零是必須的,
+ * 否則內容減少時 scrollHeight 不回落),寫回時再夾在 [min,max] 之間。
+ * 掛載/更新都等一幀再量,避免編輯回填時讀到塌陷中的佈局。
  */
 const props = withDefaults(
   defineProps<{
     modelValue: string;
-    /** 起始行数(空内容时的高度) */
+    /** 起始行數(空內容時的高度) */
     rows?: number;
-    /** 封顶行数;超出后出现滚动条。默认 12 */
+    /** 封頂行數;超出後出現捲軸。預設 12 */
     maxRows?: number;
-    /** 等宽字体(工作流 JSON / tag 串用) */
+    /** 等寬字型(工作流 JSON / tag 串用) */
     mono?: boolean;
-    /** 占位符 */
+    /** 佔位符 */
     placeholder?: string;
-    /** 关闭拼写检查(tag/JSON 场景默认关;纯中文描述可开) */
+    /** 關閉拼寫檢查(tag/JSON 場景預設關;純中文描述可開) */
     spellcheck?: boolean;
   }>(),
   { rows: 1, maxRows: 12, mono: false, placeholder: '', spellcheck: false },
@@ -37,11 +37,11 @@ const props = withDefaults(
 
 const emit = defineEmits<{ (e: 'update:modelValue', v: string): void }>();
 
-// 透传 class/style(合并到根 textarea,保持 .bbi-input 等既有工具类可用)
+// 透傳 class/style(合併到根 textarea,保持 .bbi-input 等既有工具類可用)
 const attrs = useAttrs();
 
 const el = ref<HTMLTextAreaElement | null>(null);
-/** 单行像素高:mounted 后测一次;行数→像素换算的基准 */
+/** 單行畫素高:mounted 後測一次;行數→畫素換算的基準 */
 let lineHeightPx = 21;
 
 const composing = ref(false);
@@ -54,7 +54,7 @@ function onCompositionStart() {
 }
 function onCompositionEnd(event: CompositionEvent) {
   composing.value = false;
-  // 兼容部分浏览器不触发 input 的口径:结束时统一以最终值回写一次
+  // 相容部分瀏覽器不觸發 input 的口徑:結束時統一以最終值回寫一次
   emit('update:modelValue', (event.target as HTMLTextAreaElement).value);
 }
 
@@ -62,7 +62,7 @@ function measure(): void {
   const node = el.value;
   if (!node) return;
   node.style.height = 'auto';
-  // scrollHeight 只含内容+上下 padding,box-sizing:border-box 时须补边框才是总占用高度
+  // scrollHeight 只含內容+上下 padding,box-sizing:border-box 時須補邊框才是總佔用高度
   const content = node.scrollHeight;
   const style = window.getComputedStyle(node);
   const border = parseFloat(style.borderTopWidth) + parseFloat(style.borderBottomWidth);
@@ -81,7 +81,7 @@ function setup() {
   lineHeightPx = parseFloat(style.lineHeight) || 21;
   ro?.disconnect();
   ro = new ResizeObserver(() => measure());
-  // 观察自身:宽度变化(拖动/缩放)时高度要跟着重排
+  // 觀察自身:寬度變化(拖動/縮放)時高度要跟著重排
   ro.observe(node);
   requestAnimationFrame(() => measure());
 }
@@ -92,8 +92,8 @@ defineExpose({
     el.value?.focus();
   },
   /**
-   * 在光标处插入文本并选中;无焦点时追加到末尾。
-   * 用于宏按钮:返回插入后的光标位置,调用方如需移动光标再自行处理。
+   * 在游標處插入文本並選中;無焦點時追加到末尾。
+   * 用於宏按鈕:返回插入後的游標位置,呼叫方如需移動游標再自行處理。
    */
   insertAtCursor(text: string): void {
     const node = el.value;
@@ -114,9 +114,9 @@ defineExpose({
 });
 
 onMounted(setup);
-// rows/maxRows 变化时上下限变了,重新夹一次高度(模板编辑等场景会动态改)
+// rows/maxRows 變化時上下限變了,重新夾一次高度(模板編輯等場景會動態改)
 watch(() => [props.rows, props.maxRows], () => requestAnimationFrame(() => measure()));
-// 程序化改值(弹窗回填草稿/恢复默认)不触发 input 事件,这里补量(输入路径重复量一次无害)
+// 程式化改值(彈窗回填草稿/恢復預設)不觸發 input 事件,這裡補量(輸入路徑重複量一次無害)
 watch(
   () => props.modelValue,
   () => requestAnimationFrame(() => measure()),

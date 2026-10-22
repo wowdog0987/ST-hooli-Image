@@ -30,7 +30,7 @@ const WORKFLOW = JSON.stringify({
 
 describe('parseWorkflowBindings', () => {
   it('reads a fenced response and merges tag/nl on the same input into combined mode', () => {
-    const raw = `说明
+    const raw = `說明
 \`\`\`json
 {"bindings":[
   {"node":"6","input":"text","purpose":"positive_tag","keep":["F1"]},
@@ -47,7 +47,7 @@ describe('parseWorkflowBindings', () => {
       parseWorkflowBindings(
         '{"bindings":[{"node":"6","input":"text","purpose":"positive_tag"},{"node":"6","input":"text","purpose":"negative"}]}',
       ),
-    ).toThrow('互相冲突');
+    ).toThrow('互相沖突');
   });
 });
 
@@ -91,7 +91,7 @@ describe('applyWorkflowBindings', () => {
       applyWorkflowBindings(WORKFLOW, [
         { node: '3', input: 'positive', purpose: 'positive_tag' },
       ]),
-    ).toThrow('不是可直接替换');
+    ).toThrow('不是可直接替換');
   });
 
   it('requires a positive prompt binding when the workflow has no existing %prompt%', () => {
@@ -99,7 +99,7 @@ describe('applyWorkflowBindings', () => {
       applyWorkflowBindings(WORKFLOW, [
         { node: '7', input: 'text', purpose: 'negative' },
       ]),
-    ).toThrow('没有找到正向提示词');
+    ).toThrow('沒有找到正向提示詞');
   });
 
   it('keeps only selected fixed fragments and removes exported sample scene content', () => {

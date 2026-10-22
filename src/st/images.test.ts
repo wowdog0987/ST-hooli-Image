@@ -19,7 +19,7 @@ describe('uploadUserImage', () => {
     mocks.context = fakeContext();
   });
 
-  it('按 /api/images/upload 协议提交(folder → ch_name),返回落盘路径', async () => {
+  it('按 /api/images/upload 協議提交(folder → ch_name),返回落盤路徑', async () => {
     const fetchMock = vi.fn((url: string, init: any) => {
       expect(url).toBe('/api/images/upload');
       const body = JSON.parse(init.body);
@@ -41,7 +41,7 @@ describe('uploadUserImage', () => {
     expect(path).toBe('/user/images/柏宝绘_画师串/art_1.jpg');
   });
 
-  it('服务端报错 → ImageStoreError 带状态码', async () => {
+  it('服務端報錯 → ImageStoreError 帶狀態碼', async () => {
     vi.stubGlobal(
       'fetch',
       vi.fn(() => Promise.resolve(new Response('{"error":"bad"}', { status: 400 }))),
@@ -52,14 +52,14 @@ describe('uploadUserImage', () => {
     });
   });
 
-  it('200 但响应缺 path → 报错(不让调用方拿到空路径存进设置)', async () => {
+  it('200 但響應缺 path → 報錯(不讓呼叫方拿到空路徑存進設定)', async () => {
     vi.stubGlobal('fetch', vi.fn(() => Promise.resolve(new Response('{}', { status: 200 }))));
     await expect(uploadUserImage('f', 'n', 'QUJD', 'jpg')).rejects.toBeInstanceOf(
       ImageStoreError,
     );
   });
 
-  it('上下文不可用 → 直接抛,不发请求', async () => {
+  it('上下文不可用 → 直接拋,不發請求', async () => {
     mocks.context = null;
     const fetchMock = vi.fn();
     vi.stubGlobal('fetch', fetchMock);
@@ -75,7 +75,7 @@ describe('deleteUserImage', () => {
     mocks.context = fakeContext();
   });
 
-  it('删除成功 → true;404 → false(文件本就不存在,无需清理)', async () => {
+  it('刪除成功 → true;404 → false(檔案本就不存在,無需清理)', async () => {
     vi.stubGlobal(
       'fetch',
       vi.fn((url: string) => {
@@ -92,7 +92,7 @@ describe('deleteUserImage', () => {
     await expect(deleteUserImage('/user/images/f/a.jpg')).resolves.toBe(false);
   });
 
-  it('其它失败 → ImageStoreError', async () => {
+  it('其它失敗 → ImageStoreError', async () => {
     vi.stubGlobal(
       'fetch',
       vi.fn(() => Promise.resolve(new Response('oops', { status: 500 }))),
@@ -109,7 +109,7 @@ describe('probeUserImage', () => {
     mocks.context = fakeContext();
   });
 
-  it('HEAD 取 Content-Length,不下载图片本身', async () => {
+  it('HEAD 取 Content-Length,不下載圖片本身', async () => {
     const fetchMock = vi.fn((url: string, init: any) => {
       expect(url).toBe('/user/images/f/a.jpg');
       expect(init.method).toBe('HEAD');
@@ -119,13 +119,13 @@ describe('probeUserImage', () => {
     await expect(probeUserImage('/user/images/f/a.jpg')).resolves.toEqual({ exists: true, size: 311300 });
   });
 
-  it('404 → exists:false(服务端明确说没有)', async () => {
+  it('404 → exists:false(服務端明確說沒有)', async () => {
     vi.stubGlobal('fetch', vi.fn(() => Promise.resolve(new Response(null, { status: 404 }))));
     await expect(probeUserImage('/user/images/f/a.jpg')).resolves.toEqual({ exists: false });
   });
 
-  it('网络错误/5xx → null:分不清,绝不能当成「已删除」', async () => {
-    // 把一次掉线记成删除,会让用户网一抖就看见满屏「文件已删除」
+  it('網路錯誤/5xx → null:分不清,絕不能當成「已刪除」', async () => {
+    // 把一次掉線記成刪除,會讓使用者網一抖就看見滿屏「檔案已刪除」
     vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new TypeError('Failed to fetch'))));
     await expect(probeUserImage('/user/images/f/a.jpg')).resolves.toBeNull();
 
@@ -133,12 +133,12 @@ describe('probeUserImage', () => {
     await expect(probeUserImage('/user/images/f/a.jpg')).resolves.toBeNull();
   });
 
-  it('缺 Content-Length 仍算存在,size 为 null', async () => {
+  it('缺 Content-Length 仍算存在,size 為 null', async () => {
     vi.stubGlobal('fetch', vi.fn(() => Promise.resolve(new Response(null, { status: 200 }))));
     await expect(probeUserImage('/user/images/f/a.jpg')).resolves.toEqual({ exists: true, size: null });
   });
 
-  it('超时中止 → null', async () => {
+  it('超時中止 → null', async () => {
     vi.stubGlobal(
       'fetch',
       vi.fn((_url: string, init: any) =>

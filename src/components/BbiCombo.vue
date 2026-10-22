@@ -4,26 +4,26 @@ import { modalHost } from '@/state/ui';
 import { computed, onBeforeUnmount, ref } from 'vue';
 
 /**
- * 可输入可下拉的组合框(combobox,交互与副 API 的模型框一致):
- * 输入框既是当前值也是过滤词,聚焦弹出候选菜单;候选为空时退化为普通输入框。
+ * 可輸入可下拉的組合框(combobox,互動與副 API 的模型框一致):
+ * 輸入框既是當前值也是過濾詞,聚焦彈出候選選單;候選為空時退化為普通輸入框。
  *
- * 为什么菜单 Teleport 到 modalHost 而不是就地绝对定位(副 API 那个是就地):
- * 本组件用在 Collapsible(overflow:hidden)里,就地定位会被裁剪(柏宝书踩过同款坑),
- * 故与 BbiSelect 同方案 —— 视口级 fixed,由输入框 getBoundingClientRect 推算,
- * 下方空间不足时向上翻。
+ * 為什麼選單 Teleport 到 modalHost 而不是就地絕對定位(副 API 那個是就地):
+ * 本元件用在 Collapsible(overflow:hidden)裡,就地定位會被裁剪,
+ * 故與 BbiSelect 同方案 —— 視口級 fixed,由輸入框 getBoundingClientRect 推算,
+ * 下方空間不足時向上翻。
  *
- * 交互:聚焦/输入展开;↑↓ 移动高亮,Enter 选中,Esc 只关菜单(不触发窗口级 Esc);
- * 点外部(输入框失焦)/滚动/缩放关闭。菜单内 mousedown 一律 preventDefault,
- * 让点击选项/滚动条不抢输入框焦点,选项靠 click 选中。
+ * 互動:聚焦/輸入展開;↑↓ 移動高亮,Enter 選中,Esc 只關選單(不觸發視窗級 Esc);
+ * 點外部(輸入框失焦)/滾動/縮放關閉。選單內 mousedown 一律 preventDefault,
+ * 讓點選選項/捲軸不搶輸入框焦點,選項靠 click 選中。
  */
 const props = withDefaults(
   defineProps<{
     modelValue: string;
-    /** 候选列表;空数组 = 普通输入框(不弹菜单、不画三角) */
+    /** 候選列表;空陣列 = 普通輸入框(不彈選單、不畫三角) */
     options: string[];
     placeholder?: string;
     ariaLabel?: string;
-    /** 过滤结果展示上限,避免超长列表卡顿 */
+    /** 過濾結果展示上限,避免超長列表卡頓 */
     maxShown?: number;
   }>(),
   { placeholder: '', ariaLabel: undefined, maxShown: 200 },
@@ -31,14 +31,14 @@ const props = withDefaults(
 const emit = defineEmits<{ (e: 'update:modelValue', v: string): void }>();
 
 const open = ref(false);
-/** 聚焦后用户输入的过滤词;聚焦/关闭时清空(清空=显示全部候选) */
+/** 聚焦後用戶輸入的過濾詞;聚焦/關閉時清空(清空=顯示全部候選) */
 const query = ref('');
 const trigger = ref<HTMLInputElement | null>(null);
 const menu = ref<HTMLElement | null>(null);
 const menuStyle = ref<Record<string, string>>({});
 const activeIndex = ref(0);
 
-// 过滤:子串、大小写不敏感;query 为空显示全部
+// 過濾:子串、大小寫不敏感;query 為空顯示全部
 const filtered = computed(() => {
   const q = query.value.trim().toLowerCase();
   const out = q ? props.options.filter(o => o.toLowerCase().includes(q)) : props.options;
@@ -53,7 +53,7 @@ function openMenu() {
   const el = trigger.value;
   if (!el || open.value || !props.options.length) return;
   const rect = el.getBoundingClientRect();
-  // 估算菜单高度决定朝向:下方不够且上方更宽裕就向上翻
+  // 估算選單高度決定朝向:下方不夠且上方更寬裕就向上翻
   const estimated = Math.min(MENU_MAX_HEIGHT, props.options.length * 30 + 10);
   const below = window.innerHeight - rect.bottom - MENU_GAP - VIEWPORT_MARGIN;
   const upward = below < estimated && rect.top - VIEWPORT_MARGIN > below;
@@ -69,7 +69,7 @@ function openMenu() {
   activeIndex.value = Math.max(0, filtered.value.indexOf(props.modelValue));
   open.value = true;
   document.addEventListener('keydown', onDocKeydown, true);
-  // 菜单是视口级 fixed,不随内容滚动;滚动/缩放时直接关掉,比重算位置干净
+  // 選單是視口級 fixed,不隨內容滾動;滾動/縮放時直接關掉,比重算位置乾淨
   document.addEventListener('scroll', closeOnViewportChange, true);
   window.addEventListener('resize', closeOnViewportChange);
 }
@@ -103,7 +103,7 @@ function onInput(event: Event) {
 function pick(option: string) {
   emit('update:modelValue', option);
   closeMenu();
-  // 焦点留在输入框(菜单 mousedown 被 prevent,从未失焦),方便继续敲下一个字段
+  // 焦點留在輸入框(選單 mousedown 被 prevent,從未失焦),方便繼續敲下一個欄位
 }
 
 function scrollActiveIntoView() {
@@ -116,7 +116,7 @@ function onDocKeydown(event: KeyboardEvent) {
   if (!open.value) return;
   const count = filtered.value.length;
   if (event.key === 'Escape') {
-    // 捕获阶段拦截,只关菜单,别触发窗口级 Esc(关整个面板)
+    // 捕獲階段攔截,只關選單,別觸發視窗級 Esc(關整個面板)
     event.preventDefault();
     event.stopPropagation();
     closeMenu();
@@ -140,7 +140,7 @@ function onDocKeydown(event: KeyboardEvent) {
   }
 }
 
-/** 收起态按 ↓ 直接展开(原生 combobox 习惯) */
+/** 收起態按 ↓ 直接展開(原生 combobox 習慣) */
 function onTriggerKeydown(event: KeyboardEvent) {
   if (!open.value && event.key === 'ArrowDown') {
     event.preventDefault();
@@ -148,7 +148,7 @@ function onTriggerKeydown(event: KeyboardEvent) {
   }
 }
 
-/** 菜单内 mousedown 全拦:点选项/拖滚动条都不抢输入框焦点,选项走 click 选中 */
+/** 選單內 mousedown 全攔:點選項/拖捲軸都不搶輸入框焦點,選項走 click 選中 */
 function keepFocus() {}
 
 onBeforeUnmount(() => closeMenu());
@@ -170,7 +170,7 @@ onBeforeUnmount(() => closeMenu());
       @blur="closeMenu"
       @keydown="onTriggerKeydown"
     />
-    <!-- 下拉三角(装饰):仅在有候选时显示;pointer-events:none → 点击穿透照常聚焦展开 -->
+    <!-- 下拉三角(裝飾):僅在有候選時顯示;pointer-events:none → 點選穿透照常聚焦展開 -->
     <Icon
       v-if="options.length"
       name="chevron"
@@ -187,7 +187,7 @@ onBeforeUnmount(() => closeMenu());
         :style="menuStyle"
         @mousedown.prevent="keepFocus"
       >
-        <li v-if="!filtered.length" class="bbi-combo-empty">无匹配项</li>
+        <li v-if="!filtered.length" class="bbi-combo-empty">無匹配項</li>
         <li
           v-for="(option, i) in filtered"
           :key="option"
@@ -213,7 +213,7 @@ onBeforeUnmount(() => closeMenu());
 }
 .bbi-combo-input {
   width: 100%;
-  padding-right: 26px; /* 给右侧三角让位 */
+  padding-right: 26px; /* 給右側三角讓位 */
 }
 .bbi-combo-caret {
   position: absolute;
@@ -228,10 +228,10 @@ onBeforeUnmount(() => closeMenu());
   transform: translateY(-50%) rotate(180deg);
 }
 
-/* 菜单 Teleport 到 modalHost(scoped 样式在同 shadow root 内照常生效) */
+/* 選單 Teleport 到 modalHost(scoped 樣式在同 shadow root 內照常生效) */
 .bbi-combo-menu {
   position: fixed;
-  z-index: 10001; /* 窗口(10000)之上,与 BbiSelect 菜单同级 */
+  z-index: 10001; /* 視窗(10000)之上,與 BbiSelect 選單同級 */
   margin: 0;
   padding: 4px;
   list-style: none;

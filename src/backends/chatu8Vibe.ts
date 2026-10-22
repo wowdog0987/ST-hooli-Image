@@ -9,20 +9,20 @@ import { getContext } from '@/st/context';
 import { newNaiArtist, type NaiArtistPreset, type NaiVibe } from '@/state/settings';
 
 /**
- * 智绘姬(st-chatu8)vibe 兼容导入(只读,绝不写智绘姬的任何数据)。
+ * 智繪姬(st-chatu8)vibe 相容匯入(只讀,絕不寫智繪姬的任何資料)。
  *
- * chatu8 的 vibe 存储模型:
- * - extension_settings['st-chatu8'] 里:
- *   - vibePresets: { [预设名]: { vibeDataId, strength, model, ... } }(Vibe 生成器预设)
- *   - vibeGroups: { [组名]: { vibes: [{ vibeDataId, strength }] } }(NAI4/4.5 vibe 组)
- *   - configImageStorage: { [id]: { path } } —— 存到酒馆服务器时的路径映射
- * - vibe 数据本体是 .naiv4vibe 格式的 JSON 字符串,两处可能:
- *   a) 酒馆服务器文件(configImageStorage[id].path 可直接 fetch);
- *   b) IndexedDB「chatu8_config_images」库的 config_images 表(记录 {id, data})。
- * 格式与我们的一致(同为官方 novelai-vibe-transfer),解析直接复用 parseNaiv4vibe。
+ * chatu8 的 vibe 儲存模型:
+ * - extension_settings['st-chatu8'] 裡:
+ *   - vibePresets: { [預設名]: { vibeDataId, strength, model, ... } }(Vibe 生成器預設)
+ *   - vibeGroups: { [組名]: { vibes: [{ vibeDataId, strength }] } }(NAI4/4.5 vibe 組)
+ *   - configImageStorage: { [id]: { path } } —— 存到酒館伺服器時的路徑對映
+ * - vibe 資料本體是 .naiv4vibe 格式的 JSON 字串,兩處可能:
+ *   a) 酒館伺服器檔案(configImageStorage[id].path 可直接 fetch);
+ *   b) IndexedDB「chatu8_config_images」庫的 config_images 表(記錄 {id, data})。
+ * 格式與我們的一致(同為官方 novelai-vibe-transfer),解析直接複用 parseNaiv4vibe。
  */
 
-/** 智绘姬在 extension_settings 里的命名空间键。 */
+/** 智繪姬在 extension_settings 裡的名稱空間鍵。 */
 export const CHATU8_SETTINGS_KEY = 'st-chatu8';
 const CHATU8_DB_NAME = 'chatu8_config_images';
 const CHATU8_STORE_NAME = 'config_images';
@@ -33,7 +33,7 @@ export { vibeFingerprint } from '@/backends/vibeStore';
 export interface Chatu8VibeRef {
   vibeDataId: string;
   strength: number;
-  /** 来源名:预设名或组名(用于命名导入条目)。 */
+  /** 來源名:預設名或組名(用於命名匯入條目)。 */
   source: string;
   kind: 'preset' | 'group';
 }
@@ -41,11 +41,11 @@ export interface Chatu8VibeRef {
 export interface Chatu8ArtistRef {
   /** Source preset name in st-chatu8. */
   source: string;
-  /** 前置固定正向(fixedPrompt)→ 目标画师串位(正向最前,与智绘姬拼装位置一致)。 */
+  /** 前置固定正向(fixedPrompt)→ 目標畫師串位(正向最前,與智繪姬拼裝位置一致)。 */
   prompt: string;
-  /** 后置固定正向(fixedPrompt_end)→ 目标正面质量词位(正向最后,与智绘姬拼装位置一致)。 */
+  /** 後置固定正向(fixedPrompt_end)→ 目標正面質量詞位(正向最後,與智繪姬拼裝位置一致)。 */
   quality: string;
-  /** 固定负向(negativePrompt);导入时会在前面拼上当前模型官方基线(智绘姬同口径:官方 UCP + 用户负向)。 */
+  /** 固定負向(negativePrompt);匯入時會在前面拼上當前模型官方基線(智繪姬同口徑:官方 UCP + 使用者負向)。 */
   negative: string;
   /** Whether this is the currently selected NovelAI prompt preset in st-chatu8. */
   active: boolean;
@@ -82,21 +82,21 @@ export function detectChatu8Artists(chatu8: unknown): Chatu8ArtistDetectInfo {
   return { found: true, total: collectChatu8ArtistRefs(chatu8).length };
 }
 
-/** 一条预设的去向(与 collectChatu8ArtistRefs 顺序一一对应,预览徽标与落盘共用)。 */
+/** 一條預設的去向(與 collectChatu8ArtistRefs 順序一一對應,預覽徽標與落盤共用)。 */
 export interface Chatu8ArtistPlan {
   source: string;
-  /** 前置固定正向(预览用)。 */
+  /** 前置固定正向(預覽用)。 */
   prompt: string;
-  /** 后置固定正向(预览用)。 */
+  /** 後置固定正向(預覽用)。 */
   quality: string;
-  /** 固定负向原文(预览用;落盘值在 preset 里,前面已拼上官方基线)。 */
+  /** 固定負向原文(預覽用;落盤值在 preset 裡,前面已拼上官方基線)。 */
   negative: string;
   active: boolean;
-  /** import = 新建条目;overwrite = 同名覆盖现有条目;skip = 内容完全相同,跳过。 */
+  /** import = 新建條目;overwrite = 同名覆蓋現有條目;skip = 內容完全相同,跳過。 */
   state: 'import' | 'overwrite' | 'skip';
-  /** 目标条目 id:overwrite/skip 指向现有条目;import 指向新建条目。 */
+  /** 目標條目 id:overwrite/skip 指向現有條目;import 指向新建條目。 */
   targetId: string;
-  /** import/overwrite 时携带最终落库值(overwrite 时 id = 现有条目 id)。 */
+  /** import/overwrite 時攜帶最終落庫值(overwrite 時 id = 現有條目 id)。 */
   preset?: NaiArtistPreset;
 }
 
@@ -111,17 +111,17 @@ export interface Chatu8ArtistImportResult {
 }
 
 /**
- * 把智绘姬的全部提示词预设搬进画师串库(纯函数,绝不写智绘姬)。
+ * 把智繪姬的全部提示詞預設搬進畫師串庫(純函式,絕不寫智繪姬)。
  *
- * 映射(与智绘姬生成时的拼装位置一一对应):
- * - fixedPrompt(前置固定正向)→ 目标 prompt(画师串位,正向最前);
- * - fixedPrompt_end(后置固定正向)→ 目标 quality(正面质量词位,正向最后);
- * - negativePrompt(固定负向)→ 目标 negative。智绘姬的口径是「官方 UCP + 用户负向」,
- *   故用户负向非空时把当前模型官方基线烤在它前面(基线在导入时即定,随后不随模型切换);
- *   用户负向为空则留空走回落链,基线仍跟随模型,与智绘姬空负向时只用 UCP 同效。
+ * 對映(與智繪姬生成時的拼裝位置一一對應):
+ * - fixedPrompt(前置固定正向)→ 目標 prompt(畫師串位,正向最前);
+ * - fixedPrompt_end(後置固定正向)→ 目標 quality(正面質量詞位,正向最後);
+ * - negativePrompt(固定負向)→ 目標 negative。智繪姬的口徑是「官方 UCP + 使用者負向」,
+ *   故使用者負向非空時把當前模型官方基線烤在它前面(基線在匯入時即定,隨後不隨模型切換);
+ *   使用者負向為空則留空走回落鏈,基線仍跟隨模型,與智繪姬空負向時只用 UCP 同效。
  *
- * 同名即视为同一配方:内容不同 → 覆盖更新(旧版迁移把正向整体塞进画师串的条目,
- * 重新导入即被修好),完全相同 → 跳过。幂等,随时可再来。
+ * 同名即視為同一配方:內容不同 → 覆蓋更新(舊版遷移把正向整體塞進畫師串的條目,
+ * 重新匯入即被修好),完全相同 → 跳過。冪等,隨時可再來。
  */
 export function importArtistsFromChatu8(
   existing: readonly NaiArtistPreset[],
@@ -132,7 +132,7 @@ export function importArtistsFromChatu8(
     return { found: false, imported: 0, overwritten: 0, duplicates: 0, plans: [], activeArtistId: '' };
   }
 
-  // 同名覆盖按「首个同名条目」处理(库允许重名、以 id 为键;其余同名条目不动)。
+  // 同名覆蓋按「首個同名條目」處理(庫允許重名、以 id 為鍵;其餘同名條目不動)。
   const byName = new Map<string, NaiArtistPreset>();
   for (const preset of existing) {
     const name = preset.name.trim();
@@ -187,7 +187,7 @@ export function importArtistsFromChatu8(
   return result;
 }
 
-/** 从 chatu8 设置里收集全部 vibe 引用(预设 + 组),按 vibeDataId 去重(预设优先,命名更好看)。 */
+/** 從 chatu8 設定裡收集全部 vibe 引用(預設 + 組),按 vibeDataId 去重(預設優先,命名更好看)。 */
 export function collectChatu8VibeRefs(chatu8: unknown): Chatu8VibeRef[] {
   if (!chatu8 || typeof chatu8 !== 'object') return [];
   const root = chatu8 as Record<string, unknown>;
@@ -234,7 +234,7 @@ function decodeDataUrlText(dataUrl: string): string {
   return header.includes(';base64') ? base64ToUtf8(data) : decodeURIComponent(data);
 }
 
-/** 与 chatu8 getConfigText 的服务器分支同口径:fetch 路径后按 data:/JSON/base64 尝试解码。 */
+/** 與 chatu8 getConfigText 的伺服器分支同口徑:fetch 路徑後按 data:/JSON/base64 嘗試解碼。 */
 async function fetchServerText(path: string): Promise<string | null> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
@@ -258,8 +258,8 @@ async function fetchServerText(path: string): Promise<string | null> {
 }
 
 /**
- * 读 chatu8 的 IndexedDB(不带版本号打开,避免触发 upgrade;只读单条记录)。
- * data 可能是字符串(text)或 ArrayBuffer(图片,不会是 vibe 文本,忽略)。
+ * 讀 chatu8 的 IndexedDB(不帶版本號開啟,避免觸發 upgrade;只讀單條記錄)。
+ * data 可能是字串(text)或 ArrayBuffer(圖片,不會是 vibe 文本,忽略)。
  */
 let chatu8DbPromise: Promise<IDBDatabase | null> | null = null;
 
@@ -307,15 +307,15 @@ async function readChatu8Store(id: string): Promise<string | null> {
 }
 
 export interface Chatu8DetectInfo {
-  /** 是否检测到智绘姬设置。 */
+  /** 是否檢測到智繪姬設定。 */
   found: boolean;
-  /** vibe 引用总数(预设+组内,已按 id 去重)。 */
+  /** vibe 引用總數(預設+組內,已按 id 去重)。 */
   total: number;
   presets: number;
   groups: number;
 }
 
-/** 智绘姬 vibe 检测:只读 settings 里的引用列表(同步、廉价),供迁移面板实时展示。 */
+/** 智繪姬 vibe 檢測:只讀 settings 裡的引用列表(同步、廉價),供遷移面板即時展示。 */
 export function detectChatu8Vibes(chatu8: unknown): Chatu8DetectInfo {
   if (!chatu8 || typeof chatu8 !== 'object') return { found: false, total: 0, presets: 0, groups: 0 };
   const refs = collectChatu8VibeRefs(chatu8);
@@ -327,22 +327,22 @@ export function detectChatu8Vibes(chatu8: unknown): Chatu8DetectInfo {
   };
 }
 
-/** 旧版迁移把组名拼进了显示名,分隔符是「 · 」。 */
+/** 舊版遷移把組名拼進了顯示名,分隔符是「 · 」。 */
 const LEGACY_GROUP_SEPARATOR = ' · ';
 
 export interface PrefixGroupPlan {
   id: string;
-  /** 从名字前缀识别出的组名。 */
+  /** 從名字字首識別出的組名。 */
   group: string;
-  /** 去掉前缀后的显示名。 */
+  /** 去掉字首後的顯示名。 */
   name: string;
 }
 
 /**
- * 为「已经迁移过」的库补分组:旧版把组名拼成了「组名 · 原名」,这里把前缀还原成 group。
+ * 為「已經遷移過」的庫補分組:舊版把組名拼成了「組名 · 原名」,這裡把字首還原成 group。
  *
- * 只动 group 为空的条目(不覆盖用户已手工分好的组),且前缀与余名都非空才算。
- * 纯函数、只返回需要改动的条目,调用方决定是否落盘——用户点按钮前要能看到「将整理 N 个」。
+ * 只動 group 為空的條目(不覆蓋使用者已手工分好的組),且字首與餘名都非空才算。
+ * 純函式、只返回需要改動的條目,呼叫方決定是否落盤——使用者點按鈕前要能看到「將整理 N 個」。
  */
 export function planPrefixGroups(
   vibes: readonly Pick<NaiVibe, 'id' | 'name' | 'group'>[],
@@ -361,14 +361,14 @@ export function planPrefixGroups(
 }
 
 export interface Chatu8ImportResult {
-  /** 是否检测到 chatu8 设置。 */
+  /** 是否檢測到 chatu8 設定。 */
   found: boolean;
   imported: number;
-  /** 内容与本库已有(或本次已导入)重复而跳过。 */
+  /** 內容與本庫已有(或本次已匯入)重複而跳過。 */
   duplicates: number;
-  /** 引用存在但数据取不到/解析失败。 */
+  /** 引用存在但資料取不到/解析失敗。 */
   failed: number;
-  /** 待入库的新条目(调用方 push 进 settings.nai.vibes)。 */
+  /** 待入庫的新條目(呼叫方 push 進 settings.nai.vibes)。 */
   vibes: NaiVibe[];
 }
 
@@ -379,8 +379,8 @@ export interface Chatu8ImportOptions {
 }
 
 /**
- * 从 st-chatu8 导入全部 vibe。existing 传当前库(内容去重用)。
- * 单个失败不阻塞整体;结果为 null 表示未检测到 chatu8。
+ * 從 st-chatu8 匯入全部 vibe。existing 傳當前庫(內容去重用)。
+ * 單個失敗不阻塞整體;結果為 null 表示未檢測到 chatu8。
  */
 export async function importVibesFromChatu8(
   existing: NaiVibe[],
@@ -402,7 +402,7 @@ export async function importVibesFromChatu8(
 
   for (const [index, ref] of refs.entries()) {
     options.onProgress?.(index + 1, refs.length);
-    // 服务器优先(chatu8 同口径),取不到再试 IndexedDB
+    // 伺服器優先(chatu8 同口徑),取不到再試 IndexedDB
     const path = serverMap[ref.vibeDataId]?.path;
     let text = typeof path === 'string' && path ? await fetchServerText(path) : null;
     if (!text) text = await readChatu8Store(ref.vibeDataId);
@@ -410,7 +410,7 @@ export async function importVibesFromChatu8(
       result.failed++;
       continue;
     }
-    // IndexedDB 里可能存的是 dataURL 字符串,先剥壳
+    // IndexedDB 裡可能存的是 dataURL 字串,先剝殼
     if (text.startsWith('data:')) text = decodeDataUrlText(text);
     try {
       const parsed = parseNaiv4vibe(text);
@@ -426,15 +426,15 @@ export async function importVibesFromChatu8(
       result.vibes.push(
         vibeMetaFromData(
           id,
-          // 预设用预设名(用户起的);组内条目无名,用 vibe 文件原名(组名已进 group 字段,
-          // 不再拼进显示名——那会变成「组名 · 组名 · xxx」的重复)
+          // 預設用預設名(使用者起的);組內條目無名,用 vibe 檔案原名(組名已進 group 欄位,
+          // 不再拼進顯示名——那會變成「組名 · 組名 · xxx」的重複)
           ref.kind === 'preset' ? ref.source : parsed.name,
           paths.dataPath,
           paths.thumbnailPath,
           data,
           ref.strength,
           false,
-          // 智绘姬的组结构原样保留;预设不属于任何组
+          // 智繪姬的組結構原樣保留;預設不屬於任何組
           ref.kind === 'group' ? ref.source : '',
         ),
       );

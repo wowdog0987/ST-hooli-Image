@@ -9,15 +9,15 @@ vi.mock('@/st/context', () => ({
   getContext: () => mocks.context,
 }));
 
-// 只替换真正需要拦截的 saveVibeFiles(要断言调用与失败路径),其余导出取真身。
-// 曾经这里手抄了 vibeFingerprint / vibeMetaFromData 的实现,于是 vibeStore 每加一个
-// 导出都会让本文件以「No xxx export is defined on the mock」炸掉,且抄件与真身还会悄悄漂移。
+// 只替換真正需要攔截的 saveVibeFiles(要斷言呼叫與失敗路徑),其餘匯出取真身。
+// 曾經這裡手抄了 vibeFingerprint / vibeMetaFromData 的實現,於是 vibeStore 每加一個
+// 匯出都會讓本檔案以「No xxx export is defined on the mock」炸掉,且抄件與真身還會悄悄漂移。
 vi.mock('@/backends/vibeStore', async () => ({
   ...(await vi.importActual<typeof import('@/backends/vibeStore')>('@/backends/vibeStore')),
   saveVibeFiles: mocks.saveVibeFiles,
 }));
 
-describe('旧版 Vibe 设置迁移', () => {
+describe('舊版 Vibe 設定遷移', () => {
   beforeEach(() => {
     vi.resetModules();
     mocks.saveVibeFiles.mockReset();
@@ -32,11 +32,11 @@ describe('旧版 Vibe 设置迁移', () => {
     });
   });
 
-  it('把大字段上传后只留下文件路径和小型索引', async () => {
+  it('把大欄位上傳後只留下檔案路徑和小型索引', async () => {
     const saveSettingsDebounced = vi.fn();
     const legacy = {
       id: 'legacy-v1',
-      name: '旧 Vibe',
+      name: '舊 Vibe',
       image: 'A'.repeat(1024),
       thumbnail: 'data:image/jpeg;base64,dGh1bWI=',
       encodings: { 'v4-5full': { encoding: 'B'.repeat(512), infoExtracted: 1 } },
@@ -76,7 +76,7 @@ describe('旧版 Vibe 设置迁移', () => {
     expect(saveSettingsDebounced).toHaveBeenCalled();
   });
 
-  it('每条落盘后立即释放该条大字段', async () => {
+  it('每條落盤後立即釋放該條大欄位', async () => {
     const vibes = [
       { id: 'legacy-1', image: 'A'.repeat(1024), thumbnail: '', encodings: {} },
       { id: 'legacy-2', image: 'B'.repeat(1024), thumbnail: '', encodings: {} },
@@ -100,7 +100,7 @@ describe('旧版 Vibe 设置迁移', () => {
     expect(vibes[1]).not.toHaveProperty('image');
   });
 
-  it('单条保存失败时保留原数据且不进入正常设置回写', async () => {
+  it('單條儲存失敗時保留原資料且不進入正常設定回寫', async () => {
     const saveSettingsDebounced = vi.fn();
     const legacy = {
       id: 'legacy-failed',
@@ -112,17 +112,17 @@ describe('旧版 Vibe 设置迁移', () => {
       extensionSettings: { baibai_image: { nai: { vibes: [legacy] } } },
       saveSettingsDebounced,
     };
-    mocks.saveVibeFiles.mockRejectedValue(new Error('server 与 IndexedDB 都失败'));
+    mocks.saveVibeFiles.mockRejectedValue(new Error('server 與 IndexedDB 都失敗'));
 
     const { hydrateSettings } = await import('@/state/settings');
-    await expect(hydrateSettings()).rejects.toThrow('server 与 IndexedDB 都失败');
+    await expect(hydrateSettings()).rejects.toThrow('server 與 IndexedDB 都失敗');
 
     expect(mocks.context.extensionSettings.baibai_image.nai.vibes[0]).toBe(legacy);
     expect(legacy).toHaveProperty('image');
     expect(saveSettingsDebounced).not.toHaveBeenCalled();
   });
 
-  it('部分失败时保存已释放条目并保留失败条目', async () => {
+  it('部分失敗時儲存已釋放條目並保留失敗條目', async () => {
     const saveSettingsDebounced = vi.fn();
     const vibes = [
       { id: 'legacy-ok', image: 'A'.repeat(1024), thumbnail: '', encodings: {} },
@@ -134,10 +134,10 @@ describe('旧版 Vibe 设置迁移', () => {
     };
     mocks.saveVibeFiles
       .mockResolvedValueOnce({ dataPath: '/user/files/ok.json', thumbnailPath: '' })
-      .mockRejectedValueOnce(new Error('第二条失败'));
+      .mockRejectedValueOnce(new Error('第二條失敗'));
 
     const { hydrateSettings } = await import('@/state/settings');
-    await expect(hydrateSettings()).rejects.toThrow('第二条失败');
+    await expect(hydrateSettings()).rejects.toThrow('第二條失敗');
 
     expect(vibes[0]).not.toHaveProperty('image');
     expect(vibes[1]).toHaveProperty('image');

@@ -1,15 +1,15 @@
 /**
- * 限并发的 map。图库按批发 HEAD 探体积、批量删图时都要用:
- * 一个角色目录几十张图,`Promise.all` 一把梭会把几十个请求同时压给 ST,
- * 公网连接下先把自己的聊天卡住。
+ * 限併發的 map。相簿按批發 HEAD 探體積、批次刪圖時都要用:
+ * 一個角色目錄幾十張圖,`Promise.all` 一把梭會把幾十個請求同時壓給 ST,
+ * 公網連線下先把自己的聊天卡住。
  */
 
 /**
- * 并发不超过 limit 地映射,**返回顺序与输入一致**(不是完成顺序)。
+ * 併發不超過 limit 地對映,**返回順序與輸入一致**(不是完成順序)。
  *
- * `fn` 抛出会让整体 reject(标准 Promise.all 语义),但已启动的其余任务不会被叫停——
- * 故批量删除这类「要容忍单条失败」的场景,请在 `fn` 内部自行 try/catch 并返回结果对象,
- * 不要依赖本函数做部分失败处理。
+ * `fn` 丟擲會讓整體 reject(標準 Promise.all 語義),但已啟動的其餘任務不會被叫停——
+ * 故批次刪除這類「要容忍單條失敗」的場景,請在 `fn` 內部自行 try/catch 並返回結果物件,
+ * 不要依賴本函式做部分失敗處理。
  */
 export async function mapLimit<T, R>(
   items: readonly T[],
@@ -20,7 +20,7 @@ export async function mapLimit<T, R>(
   if (!items.length) return results;
   const width = Math.max(1, Math.min(Math.floor(limit) || 1, items.length));
   let cursor = 0;
-  // 每个 worker 自取下一个未领的下标:比切片分组更均衡(慢任务不会拖住整片)
+  // 每個 worker 自取下一個未領的下標:比切片分組更均衡(慢任務不會拖住整片)
   const worker = async (): Promise<void> => {
     for (;;) {
       const index = cursor++;

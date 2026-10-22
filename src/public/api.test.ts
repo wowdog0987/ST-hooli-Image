@@ -29,12 +29,12 @@ vi.mock('@/st/context', () => ({ getContext: () => ({ name2: '小雪' }) }));
 
 function entry(overrides: Partial<CharTagEntry> = {}): CharTagEntry {
   return {
-    name: '阿黛尔',
+    name: '阿黛爾',
     fields: { ...emptyCharFields(), sex: '1girl', hair: 'short silver hair' },
     raw: '',
     nl: 'a girl with silver hair',
     source: 'ai',
-    desc: '银色短发',
+    desc: '銀色短髮',
     history: [{ field: 'hair', from: '', to: 'short silver hair', reason: '', floor: 3, at: 1 }],
     ...overrides,
   };
@@ -78,10 +78,10 @@ describe('getCharacters', () => {
     const list = getCharacters();
     list.characters[0].name = '被改了';
     list.characters[0].fields.hair = '被改了';
-    list.characters.push({ ...list.characters[0], name: '凭空多的' });
+    list.characters.push({ ...list.characters[0], name: '憑空多的' });
 
     expect(charTagLib.entries).toHaveLength(1);
-    expect(charTagLib.entries[0].name).toBe('阿黛尔');
+    expect(charTagLib.entries[0].name).toBe('阿黛爾');
     expect(charTagLib.entries[0].fields.hair).toBe('short silver hair');
   });
 
@@ -91,12 +91,12 @@ describe('getCharacters', () => {
   });
 
   it('marks global-library-only entries as global scope', () => {
-    const global = entry({ name: '全局角色' });
+    const global = entry({ name: '全域性角色' });
     setGlobalCharTagSource(() => [global]);
     charTagLib.entries = [entry(), global];
 
     const byName = Object.fromEntries(getCharacters().characters.map(c => [c.name, c.scope]));
-    expect(byName).toEqual({ 阿黛尔: 'chat', 全局角色: 'global' });
+    expect(byName).toEqual({ 阿黛爾: 'chat', 全域性角色: 'global' });
   });
 
   it('rejects a non-integer floor instead of silently returning the current library', () => {
@@ -117,7 +117,7 @@ describe('getBackendStatus', () => {
     ready();
 
     const status = getBackendStatus();
-    // 白名单口径:内部结构日后加字段也不会静默泄漏出去
+    // 白名單口徑:內部結構日後加欄位也不會靜默洩漏出去
     expect(Object.keys(status).sort()).toEqual([
       'apiVersion', 'backend', 'configured', 'model', 'pluginVersion', 'reason', 'supportsCharacters',
     ]);
@@ -128,8 +128,8 @@ describe('getBackendStatus', () => {
   });
 
   it('passes the human-readable reason through when not configured', () => {
-    ready({ configured: false, reason: '未填写 NAI API Key' });
-    expect(getBackendStatus()).toMatchObject({ configured: false, reason: '未填写 NAI API Key' });
+    ready({ configured: false, reason: '未填寫 NAI API Key' });
+    expect(getBackendStatus()).toMatchObject({ configured: false, reason: '未填寫 NAI API Key' });
   });
 });
 
@@ -146,8 +146,8 @@ describe('toPublicError', () => {
   });
 
   it('separates rate limiting from other backend failures', () => {
-    expect(toPublicError(new Error('NAI 请求失败 (429)')).code).toBe('rate_limited');
-    expect(toPublicError(new Error('工作流 JSON 无效')).code).toBe('backend_error');
+    expect(toPublicError(new Error('NAI 請求失敗 (429)')).code).toBe('rate_limited');
+    expect(toPublicError(new Error('工作流 JSON 無效')).code).toBe('backend_error');
   });
 
   it('codes non-Error throws instead of crashing on .message', () => {
@@ -163,10 +163,10 @@ describe('generate', () => {
   });
 
   it('reports not_configured up front rather than firing a doomed request', async () => {
-    ready({ configured: false, reason: '未填写 NAI API Key' });
+    ready({ configured: false, reason: '未填寫 NAI API Key' });
     await expect(generate({ prompt: '1girl' })).rejects.toMatchObject({
       code: 'not_configured',
-      message: '未填写 NAI API Key',
+      message: '未填寫 NAI API Key',
     });
     expect(vi.mocked(generateImage)).not.toHaveBeenCalled();
   });
@@ -183,8 +183,8 @@ describe('generate', () => {
       nl: ' a girl ',
       negative: ' bad hands ',
       characters: [
-        { name: '阿黛尔', tag: '1girl, silver hair' },
-        { name: '无 tag 的', tag: '  ' },
+        { name: '阿黛爾', tag: '1girl, silver hair' },
+        { name: '無 tag 的', tag: '  ' },
         null as never,
       ],
       size: 'landscape',
@@ -194,14 +194,14 @@ describe('generate', () => {
       prompt: '1girl, moonlight',
       nl: 'a girl',
       negative: 'bad hands',
-      characters: [{ name: '阿黛尔', tag: '1girl, silver hair', nl: '' }],
+      characters: [{ name: '阿黛爾', tag: '1girl, silver hair', nl: '' }],
       size: 'landscape',
       seed: 4242,
     });
   });
 
   it('reports charactersApplied=false when the backend dropped them (ComfyUI)', async () => {
-    ready({ backend: 'comfyui', model: '默认工作流', supportsCharacters: false });
+    ready({ backend: 'comfyui', model: '預設工作流', supportsCharacters: false });
     vi.mocked(generateImage).mockResolvedValue({
       result: fakeResult(), seed: 7, backend: 'comfyui', charactersApplied: false,
     });
@@ -219,10 +219,10 @@ describe('generate', () => {
 
     const saved = await generate({ prompt: '1girl' });
     expect(saved.path).toBe('/user/images/x.png');
-    // 侧写存的是 tag 原文(含 <bbi_image> 壳),图库要拿它反解析出各字段
+    // 側寫存的是 tag 原文(含 <hooli_image> 殼),相簿要拿它反解析出各欄位
     const [name, tag, seed] = vi.mocked(saveExternalImage).mock.calls[0];
     expect(name).toBe('小雪');
-    expect(tag).toBe('<bbi_image>1girl<size>portrait</size></bbi_image>');
+    expect(tag).toBe('<hooli_image>1girl<size>portrait</size></hooli_image>');
     expect(seed).toBe(4242);
 
     vi.mocked(saveExternalImage).mockClear();
@@ -239,7 +239,7 @@ describe('generate', () => {
     vi.mocked(generateImage).mockResolvedValue({
       result: fakeResult(), seed: 4242, backend: 'nai', charactersApplied: false,
     });
-    vi.mocked(saveExternalImage).mockRejectedValueOnce(new Error('磁盘满了'));
+    vi.mocked(saveExternalImage).mockRejectedValueOnce(new Error('磁碟滿了'));
     vi.spyOn(console, 'warn').mockImplementation(() => {});
 
     const out = await generate({ prompt: '1girl' });

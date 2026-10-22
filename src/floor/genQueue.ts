@@ -1,18 +1,18 @@
 /**
- * NAI 并发闸门 + 全局节奏。
+ * NAI 併發閘門 + 全域性節奏。
  *
- * 为什么只有 NAI 需要:两个后端的排队模型不同——
- * - ComfyUI:POST /prompt 拿到 prompt_id 即入**服务端**队列,轮询各查各的 history,
- *   一次性全发出去由 ComfyUI 自己顺序执行。客户端再加队列纯属多余,还白拖慢。
- * - NAI:generate-image 是一次阻塞式 POST,等到图出来才返回,没有队列概念。
- *   并发几个就是几条连接同时压过去,容易吃 429(见 backends/nai.ts 的错误映射)。
+ * 為什麼只有 NAI 需要:兩個後端的排隊模型不同——
+ * - ComfyUI:POST /prompt 拿到 prompt_id 即入**服務端**佇列,輪詢各查各的 history,
+ *   一次性全發出去由 ComfyUI 自己順序執行。客戶端再加佇列純屬多餘,還白拖慢。
+ * - NAI:generate-image 是一次阻塞式 POST,等到圖出來才返回,沒有佇列概念。
+ *   併發幾個就是幾條連線同時壓過去,容易吃 429(見 backends/nai.ts 的錯誤對映)。
  *
- * 故闸门只包 NAI,上限用户可调(默认 1)。ComfyUI 路径不经过这里。
+ * 故閘門只包 NAI,上限使用者可調(預設 1)。ComfyUI 路徑不經過這裡。
  *
- * 闸门只管**同时几个**,管不了**多快一个**:release 后立刻 pump,下一个任务在同一个
- * tick 就发出去了。被限流时这会打出一串密集失败请求(429 → release → 立刻再来 → 429),
- * 恰恰最像滥用。故取到槽后还要等一段全局节奏(相邻请求最小间隔 + 429 冷却),
- * 口径收在 backends/naiRateLimit.ts。
+ * 閘門只管**同時幾個**,管不了**多快一個**:release 後立刻 pump,下一個任務在同一個
+ * tick 就發出去了。被限流時這會打出一串密集失敗請求(429 → release → 立刻再來 → 429),
+ * 恰恰最像濫用。故取到槽後還要等一段全域性節奏(相鄰請求最小間隔 + 429 冷卻),
+ * 口徑收在 backends/naiRateLimit.ts。
  */
 
 import {
@@ -24,10 +24,10 @@ import {
 
 let limit = 1;
 let running = 0;
-/** 等待队列:先进先出,resolve 后拿到执行权。 */
+/** 等待佇列:先進先出,resolve 後拿到執行權。 */
 const waiting: Array<() => void> = [];
 
-/** 设置并发上限(1 起步)。调大时立刻放行等待中的任务。 */
+/** 設定併發上限(1 起步)。調大時立刻放行等待中的任務。 */
 export function setNaiConcurrency(value: number): void {
   limit = Math.max(1, Math.floor(value) || 1);
   pump();
@@ -43,10 +43,10 @@ function pump(): void {
 }
 
 /**
- * 取得一个执行槽。返回 release 函数,**必须**在 finally 里调用,否则闸门泄漏。
- * signal 已取消时直接抛 AbortError,不占用槽位。
+ * 取得一個執行槽。返回 release 函式,**必須**在 finally 裡呼叫,否則閘門洩漏。
+ * signal 已取消時直接拋 AbortError,不佔用槽位。
  *
- * 返回前还会等完全局节奏(最小间隔 + 429 冷却),故调用方拿到 release 时即可立刻发请求。
+ * 返回前還會等完全域性節奏(最小間隔 + 429 冷卻),故呼叫方拿到 release 時即可立刻發請求。
  */
 export async function acquireNaiSlot(signal?: AbortSignal): Promise<() => void> {
   if (signal?.aborted) throw signal.reason ?? new DOMException('已取消', 'AbortError');
@@ -55,7 +55,7 @@ export async function acquireNaiSlot(signal?: AbortSignal): Promise<() => void> 
     running++;
   } else {
     await new Promise<void>((resolve, reject) => {
-      // 排队期间被取消:从队列摘除并抛错,不能让它之后还占一个槽
+      // 排隊期間被取消:從佇列摘除並拋錯,不能讓它之後還佔一個槽
       const onAbort = () => {
         const index = waiting.indexOf(grant);
         if (index >= 0) waiting.splice(index, 1);
@@ -72,21 +72,21 @@ export async function acquireNaiSlot(signal?: AbortSignal): Promise<() => void> 
 
   let released = false;
   const release = () => {
-    if (released) return; // 幂等:重复 release 不会把 running 减穿
+    if (released) return; // 冪等:重複 release 不會把 running 減穿
     released = true;
     running--;
     pump();
   };
 
-  // 节奏等待**持槽进行**,这是关键:若放在取槽之前,上限内的 N 个任务会一起等完同一段
-  // 再一起发,节流形同虚设。持槽等待才能让第 N 个真正排在第 N-1 个之后。
-  // 循环而非单次:等待期间别的槽位可能吃到 429 把冷却又推后了,醒来得重新问一次。
+  // 節奏等待**持槽進行**,這是關鍵:若放在取槽之前,上限內的 N 個任務會一起等完同一段
+  // 再一起發,節流形同虛設。持槽等待才能讓第 N 個真正排在第 N-1 個之後。
+  // 迴圈而非單次:等待期間別的槽位可能吃到 429 把冷卻又推後了,醒來得重新問一次。
   try {
     for (let wait = naiPacingDelayMs(); wait > 0; wait = naiPacingDelayMs()) {
       await abortableDelay(wait, signal);
     }
   } catch (error) {
-    // 等待期间被取消:必须把槽还回去。漏一格就永久少一格并发,漏满就再也发不出请求。
+    // 等待期間被取消:必須把槽還回去。漏一格就永久少一格併發,漏滿就再也發不出請求。
     release();
     throw error;
   }
@@ -95,12 +95,12 @@ export async function acquireNaiSlot(signal?: AbortSignal): Promise<() => void> 
   return release;
 }
 
-/** 当前是否需要排队(用于卡片显示「排队中」而非「生成中」)。 */
+/** 當前是否需要排隊(用於卡片顯示「排隊中」而非「生成中」)。 */
 export function naiSlotBusy(): boolean {
   return running >= limit;
 }
 
-/** 测试用:复位闸门与全局节奏。放行(而非丢弃)等待者,避免遗留 promise 永挂。 */
+/** 測試用:復位閘門與全域性節奏。放行(而非丟棄)等待者,避免遺留 promise 永掛。 */
 export function resetNaiGate(): void {
   limit = 1;
   running = 0;

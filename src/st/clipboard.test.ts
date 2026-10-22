@@ -27,7 +27,7 @@ function stubLegacyCopy(result = true) {
 afterEach(() => vi.unstubAllGlobals());
 
 describe('copyText', () => {
-  it('在非安全上下文回退到 textarea 复制', async () => {
+  it('在非安全上下文回退到 textarea 複製', async () => {
     const { textArea, appendChild, execCommand } = stubLegacyCopy();
     const success = vi.fn();
     const error = vi.fn();
@@ -35,8 +35,8 @@ describe('copyText', () => {
     vi.stubGlobal('navigator', {});
     vi.stubGlobal('toastr', { success, error });
 
-    await expect(copyText('手机端文本')).resolves.toBe(true);
-    expect(textArea.value).toBe('手机端文本');
+    await expect(copyText('手機端文本')).resolves.toBe(true);
+    expect(textArea.value).toBe('手機端文本');
     expect(appendChild).toHaveBeenCalledWith(textArea);
     expect(execCommand).toHaveBeenCalledWith('copy');
     expect(textArea.remove).toHaveBeenCalled();
@@ -44,7 +44,7 @@ describe('copyText', () => {
     expect(error).not.toHaveBeenCalled();
   });
 
-  it('异步 Clipboard 被拒绝时也尝试回退', async () => {
+  it('非同步 Clipboard 被拒絕時也嘗試回退', async () => {
     const { execCommand } = stubLegacyCopy();
     const writeText = vi.fn().mockRejectedValue(new DOMException('denied'));
     vi.stubGlobal('window', { isSecureContext: true });

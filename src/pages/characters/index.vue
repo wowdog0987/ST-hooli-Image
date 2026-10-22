@@ -4,7 +4,9 @@ import ConfirmDialog from '@/components/ConfirmDialog.vue';
 import Icon from '@/components/Icon.vue';
 import ModalMask from '@/components/ModalMask.vue';
 import { generateCharTags } from '@/autoTag/charAnchors';
-import { readBookMemory } from '@/autoTag/bookMemory';
+import { readHoraeAppearance } from '@/autoTag/horaeMemory';
+import { suggestWorldSettingFromHorae } from '@/autoTag/worldImport';
+import { WORLD_SETTING_MAX, setWorldSetting, worldSetting } from '@/state/worldSetting';
 import {
   CHAR_TAG_FIELDS,
   CHAR_TAG_FIELD_LABELS,
@@ -28,17 +30,51 @@ import {
   upsertGlobalCharTag,
 } from '@/state/globalCharTags';
 import { getContext } from '@/st/context';
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 
 /**
- * 角色管理 —— 两层固定外貌库:
- * - 全局库:跨所有聊天生效的只读模板,AI 永不修改,仅手动维护(适合玩家角色等固定形象)。
- * - 本聊天库:仅当前聊天,柏宝书自动建档、AI 随剧情变更;同名时优先于全局。
- * 外貌按字段记录(sex/hair/eyes/...),拼接结果即最终 tag;生成 tag 时 AI 照抄库中字段,
- * 残留的 @角色名 占位符由插件兜底替换 —— 外貌稳定不漂移。
+ * 角色管理 —— 兩層固定外貌庫:
+ * - 全域性庫:跨所有聊天生效的只讀模板,AI 永不修改,僅手動維護(適合玩家角色等固定形象)。
+ * - 本聊天庫:僅當前聊天,Horae自動建檔、AI 隨劇情變更;同名時優先於全域性。
+ * 外貌按欄位記錄(sex/hair/eyes/...),拼接結果即最終 tag;生成 tag 時 AI 照抄庫中欄位 —— 外貌穩定不漂移。
+ * 角色以名字逐字比對正文與 Horae 記錄,名字前面不加 @。
  */
 
 type Scope = 'chat' | 'global';
+
+/* —— 世界背景(本聊天):一行時代/地域,題詞用來定服裝與建築風格,取代每次讀世界書 —— */
+const worldDraft = ref(worldSetting.text);
+// 切換聊天時 hydrate 會換掉 worldSetting.text,草稿跟著換
+watch(
+  () => worldSetting.text,
+  text => {
+    worldDraft.value = text;
+  },
+);
+const worldImporting = ref(false);
+
+function saveWorld() {
+  if (worldDraft.value.trim() === worldSetting.text) return;
+  if (!setWorldSetting(worldDraft.value)) {
+    toastr.info('當前沒有開啟的聊天', '虎哩繪');
+    return;
+  }
+  toastr.success(worldSetting.text ? '世界背景已儲存' : '已清空世界背景', '虎哩繪');
+}
+
+async function importWorldFromHorae() {
+  worldImporting.value = true;
+  try {
+    const line = await suggestWorldSettingFromHorae();
+    worldDraft.value = line;
+    setWorldSetting(line);
+    toastr.success('已從 Horae 匯入世界背景,可直接修改', '虎哩繪');
+  } catch (error) {
+    toastr.warning(error instanceof Error ? error.message : String(error), '虎哩繪');
+  } finally {
+    worldImporting.value = false;
+  }
+}
 
 interface Draft {
   name: string;
@@ -47,40 +83,40 @@ interface Draft {
   nl: string;
 }
 
-// editingName:正在编辑的已有条目名;null = 新建。弹窗开关以 draft 是否存在为准。
+// editingName:正在編輯的已有條目名;null = 新建。彈窗開關以 draft 是否存在為準。
 const editingName = ref<string | null>(null);
-// editingScope:被编辑条目所在层;draftScope:草稿保存到哪层(仅新建时可选)。
+// editingScope:被編輯條目所在層;draftScope:草稿儲存到哪層(僅新建時可選)。
 const editingScope = ref<Scope>('chat');
 const draftScope = ref<Scope>('chat');
 const draft = ref<Draft | null>(null);
-// 草稿来源:手改内容即转 manual;「从柏宝书重新生成」后转 book。
+// 草稿來源:手改內容即轉 manual;「從Horae生成」後轉 book。
 const draftSource = ref<CharTagEntry['source']>('manual');
 const draftDesc = ref('');
 const regenerating = ref(false);
-// 弹窗内历史面板开关
+// 彈窗內歷史面板開關
 const historyOpen = ref(false);
-// 回滚确认
+// 回滾確認
 const confirmRollbackOpen = ref(false);
 const pendingRollback = ref<{ name: string; record: CharTagChangeRecord } | null>(null);
 
 const FIELD_PLACEHOLDERS: Record<CharTagField, string> = {
-  fandom: '同人角色填: character name (copyright name), 不带转义括号; 原创留空',
+  fandom: '同人角色填: character name (copyright name), 不帶轉義括號; 原創留空',
   sex: '如 1girl / 1boy',
   hair: '如 long black hair',
   eyes: '如 red eyes',
   skin: '如 pale skin(可不填)',
   body: '如 petite, small breasts',
   extra: '如 heterochromia(可不填)',
-  outfit: '固定着装,可不填',
+  outfit: '固定著裝,可不填',
 };
 
-/** 全局库名字集(响应式),用于分区与「覆盖」徽标。 */
+/** 全域性庫名字集(響應式),用於分割槽與「覆蓋」徽標。 */
 const globalNameSet = computed(() => new Set(globalCharTagLib.entries.map(entry => entry.name)));
 
 /**
- * 本聊天分区 = 派生库里「属于本聊天」的条目:
- * 本聊天基线里的(含覆盖全局的同名条目)+ 非全局的(AI 楼层建档等)。
- * 纯全局条目只出现在全局分区。
+ * 本聊天分割槽 = 派生庫裡「屬於本聊天」的條目:
+ * 本聊天基線裡的(含覆蓋全域性的同名條目)+ 非全域性的(AI 樓層建檔等)。
+ * 純全域性條目只出現在全域性分割槽。
  */
 const chatEntries = computed(() =>
   charTagLib.entries.filter(
@@ -88,7 +124,7 @@ const chatEntries = computed(() =>
   ),
 );
 
-/** 是否整串模式:有 raw 且没有字段。 */
+/** 是否整串模式:有 raw 且沒有欄位。 */
 const draftIsRaw = computed(
   () => !!draft.value && !!draft.value.raw.trim() && CHAR_TAG_FIELDS.every(f => !draft.value!.fields[f].trim()),
 );
@@ -99,13 +135,13 @@ const previewTag = computed(() => {
   return buildEntryTag({ fields: d.fields, raw: d.raw });
 });
 
-/** 正在编辑的本聊天条目的实时历史(回滚后随之刷新);全局条目不记历史。 */
+/** 正在編輯的本聊天條目的即時歷史(回滾後隨之重新整理);全域性條目不記歷史。 */
 const editingHistory = computed<CharTagChangeRecord[]>(() => {
   if (!editingName.value || editingScope.value !== 'chat') return [];
   return findCharTag(editingName.value)?.history ?? [];
 });
 
-/** 卡片上的字段 chips:有字段用字段,整串模式回退 raw 文本(模板里分支)。 */
+/** 卡片上的欄位 chips:有欄位用欄位,整串模式回退 raw 文本(模板裡分支)。 */
 function chipsOf(entry: CharTagEntry): { label: string; value: string }[] {
   const chips: { label: string; value: string }[] = [];
   for (const f of CHAR_TAG_FIELDS) {
@@ -140,8 +176,8 @@ function addEntry(scope: Scope = 'chat') {
   historyOpen.value = false;
 }
 
-/* —— 分区折叠(参照柏宝书「计划/悬念」)——
- * 标题行兼作折叠开关;折叠态是本机视图偏好,走 localStorage、不进设置(跨设备同步没意义)。 */
+/* —— 分割槽摺疊 ——
+ * 標題行兼作摺疊開關;摺疊態是本機檢視偏好,走 localStorage、不進設定(跨裝置同步沒意義)。 */
 const COLLAPSE_KEYS: Record<Scope, string> = {
   global: 'bbi.ui.charGlobalCollapsed.v1',
   chat: 'bbi.ui.charChatCollapsed.v1',
@@ -157,7 +193,7 @@ function persistCollapsed(key: string, value: boolean) {
   try {
     localStorage.setItem(key, value ? '1' : '0');
   } catch {
-    /* localStorage 不可用时仅本次会话生效 */
+    /* localStorage 不可用時僅本次會話生效 */
   }
 }
 const globalCollapsed = ref(loadCollapsed(COLLAPSE_KEYS.global));
@@ -167,7 +203,7 @@ function toggleFold(scope: Scope) {
   target.value = !target.value;
   persistCollapsed(COLLAPSE_KEYS[scope], target.value);
 }
-// 无条目即无可折叠:不显示箭头与计数,也强制展开(避免删空后卡在收拢的空态)
+// 無條目即無可摺疊:不顯示箭頭與計數,也強制展開(避免刪空後卡在收攏的空態)
 const globalFoldable = computed(() => globalCharTagLib.entries.length > 0);
 const globalShown = computed(() => !globalCollapsed.value || !globalFoldable.value);
 const chatFoldable = computed(() => chatEntries.value.length > 0);
@@ -180,7 +216,7 @@ function closeEntry() {
   historyOpen.value = false;
 }
 
-/** 手动编辑过的字段 → 条目归手动(但仍可被 AI 变更接管) */
+/** 手動編輯過的欄位 → 條目歸手動(但仍可被 AI 變更接管) */
 function markManual() {
   draftSource.value = 'manual';
   draftDesc.value = '';
@@ -191,11 +227,11 @@ function confirmEntry() {
   if (!d) return;
   const name = d.name.trim();
   if (!name) {
-    toastr.warning('角色名不能为空', '柏宝绘');
+    toastr.warning('角色名不能為空', '虎哩繪');
     return;
   }
   if (!previewTag.value) {
-    toastr.warning('至少填一个外貌字段(或整串 tag)', '柏宝绘');
+    toastr.warning('至少填一個外貌欄位(或整串 tag)', '虎哩繪');
     return;
   }
   const entryData: CharTagEntry = {
@@ -214,7 +250,7 @@ function confirmEntry() {
   if (ok) closeEntry();
 }
 
-/* —— 删除:二次确认 —— */
+/* —— 刪除:二次確認 —— */
 const confirmDeleteOpen = ref(false);
 function askRemove() {
   confirmDeleteOpen.value = true;
@@ -227,7 +263,7 @@ function confirmRemove() {
   closeEntry();
 }
 
-/* —— 提升为全局 / 复制到本聊天 —— */
+/* —— 提升為全域性 / 複製到本聊天 —— */
 const confirmPromoteOpen = ref(false);
 function askPromote() {
   confirmPromoteOpen.value = true;
@@ -236,7 +272,7 @@ function confirmPromote() {
   confirmPromoteOpen.value = false;
   if (!editingName.value) return;
   if (promoteCharTagToGlobal(editingName.value)) {
-    toastr.success(`「${editingName.value}」已提升为全局角色,所有聊天生效`, '柏宝绘');
+    toastr.success(`「${editingName.value}」已提升為全域性角色,所有聊天生效`, '虎哩繪');
   }
   closeEntry();
 }
@@ -245,57 +281,55 @@ function copyToChat() {
   if (!editingName.value) return;
   const name = editingName.value;
   if (copyGlobalCharTagToChat(name)) {
-    toastr.success(`已把「${name}」复制到本聊天,之后本聊天以副本为准`, '柏宝绘');
+    toastr.success(`已把「${name}」複製到本聊天,之後本聊天以副本為準`, '虎哩繪');
   }
   closeEntry();
 }
 
-/* —— 从柏宝书最新状态建档:取最新楼的角色参考,找到同名角色的外貌记录,批量转换接口转字段 —— */
-async function regenerateFromBook() {
+/* —— 從Horae最新狀態建檔:取最新樓的角色參考,找到同名角色的外貌記錄,批次轉換介面轉欄位 —— */
+async function regenerateFromHorae() {
   const d = draft.value;
   if (!d) return;
   const name = d.name.trim();
   if (!name) {
-    toastr.warning('先填写角色名', '柏宝绘');
+    toastr.warning('先填寫角色名', '虎哩繪');
     return;
   }
   const ctx = getContext();
-  const floor = (ctx?.chat.length ?? 0) - 1;
-  if (!ctx || floor < 0) {
-    toastr.info('当前没有打开的聊天', '柏宝绘');
+  if (!ctx?.chat.length) {
+    toastr.info('當前沒有開啟的聊天', '虎哩繪');
     return;
   }
   regenerating.value = true;
   try {
-    const memory = readBookMemory(floor, ctx.chat[floor]?.mes ?? '', ctx.name1);
-    const role = memory?.roles.find(r => r.name === name);
-    if (!role?.desc) {
-      toastr.info('柏宝书最新状态里没有该角色的外貌记录,可手动填写', '柏宝绘');
+    const desc = readHoraeAppearance(ctx.chat, name);
+    if (!desc) {
+      toastr.info('Horae 裡沒有該角色的外貌記錄,可手動填寫', '虎哩繪');
       return;
     }
-    const [result] = await generateCharTags([{ name, desc: role.desc }]);
+    const [result] = await generateCharTags([{ name, desc }]);
     if (!result) {
-      toastr.warning('模型没有返回该角色的 tag,请重试或手动填写', '柏宝绘');
+      toastr.warning('模型沒有返回該角色的 tag,請重試或手動填寫', '虎哩繪');
       return;
     }
     const fields = { ...emptyCharFields(), ...result.fields };
     d.fields = fields;
     d.raw = '';
     draftSource.value = 'book';
-    draftDesc.value = role.desc;
-    toastr.success('已按柏宝书最新外貌生成,点「完成」保存', '柏宝绘');
+    draftDesc.value = desc;
+    toastr.success('已按Horae最新外貌生成,點「完成」儲存', '虎哩繪');
   } catch (error) {
-    toastr.error(error instanceof Error ? error.message : String(error), '柏宝绘');
+    toastr.error(error instanceof Error ? error.message : String(error), '虎哩繪');
   } finally {
     regenerating.value = false;
   }
 }
 
-/* —— 历史展示与回滚(仅本聊天条目) —— */
+/* —— 歷史展示與回滾(僅本聊天條目) —— */
 function fieldLabel(field: CharTagChangeRecord['field']): string {
-  if (field === 'new') return '建档';
+  if (field === 'new') return '建檔';
   if (field === 'raw') return '整串';
-  if (field === 'nl') return '自然语言';
+  if (field === 'nl') return '自然語言';
   return CHAR_TAG_FIELD_LABELS[field];
 }
 
@@ -311,14 +345,14 @@ function confirmRollback() {
   pendingRollback.value = null;
   if (!p) return;
   if (rollbackCharTag(p.name, p.record)) {
-    toastr.success(`已回滚「${p.name}」的${fieldLabel(p.record.field)}变更`, '柏宝绘');
+    toastr.success(`已回滾「${p.name}」的${fieldLabel(p.record.field)}變更`, '虎哩繪');
   } else {
-    toastr.warning('回滚失败:条目可能已删除', '柏宝绘');
+    toastr.warning('回滾失敗:條目可能已刪除', '虎哩繪');
   }
 }
 
 function sourceLabel(entry: CharTagEntry): string {
-  return entry.source === 'book' ? '柏宝书' : entry.source === 'ai' ? 'AI 维护' : '手动';
+  return entry.source === 'book' ? 'Horae' : entry.source === 'ai' ? 'AI 維護' : '手動';
 }
 </script>
 
@@ -330,10 +364,37 @@ function sourceLabel(entry: CharTagEntry): string {
     <hr class="bbi-rule" />
 
     <p class="bbi-field-hint">
-      角色固定外貌库:生成 tag 时 AI 照抄库中字段,@角色名 占位符也会被替换为库中最新外貌,稳定不漂移。
+      角色固定外貌庫:生成 tag 時 AI 照抄庫中欄位,外貌穩定不漂移。角色名要和正文、Horae 記錄的名字一模一樣,前面不要加 @。
     </p>
 
-    <!-- ===== 全局角色库 ===== -->
+    <!-- ===== 世界背景(本聊天) ===== -->
+    <div class="bbi-char-section">
+      <div class="bbi-char-section-head">
+        <span class="bbi-field-label">世界背景</span>
+        <button
+          class="bbi-btn bbi-btn-sm"
+          type="button"
+          title="依 Horae 最新一樓的地點、場景記憶與在場服裝,請模型濃縮成一行(不讀世界書)"
+          :disabled="worldImporting"
+          @click="importWorldFromHorae"
+        >
+          <Icon name="refresh" /> {{ worldImporting ? '匯入中…' : '從Horae匯入' }}
+        </button>
+      </div>
+      <input
+        v-model="worldDraft"
+        class="bbi-input"
+        :maxlength="WORLD_SETTING_MAX"
+        placeholder="例:18世紀歐洲・洛可可貴族宮廷 / 1920年代上海・民國初年 / 現代韓國首爾"
+        @change="saveWorld"
+        @keydown.enter="saveWorld"
+      />
+      <p class="bbi-field-hint">
+        僅本聊天生效。生成 tag 時作為服裝、建築、道具的時代風格預設值;正文另有描述時以正文為準。留空則由模型從正文推斷。
+      </p>
+    </div>
+
+    <!-- ===== 全域性角色庫 ===== -->
     <div class="bbi-char-section">
       <div class="bbi-char-section-head">
         <button
@@ -342,22 +403,22 @@ function sourceLabel(entry: CharTagEntry): string {
           :class="{ 'is-static': !globalFoldable }"
           :disabled="!globalFoldable"
           :aria-expanded="globalShown"
-          :title="globalFoldable ? (globalShown ? '收起全局角色库' : '展开全局角色库') : ''"
+          :title="globalFoldable ? (globalShown ? '收起全域性角色庫' : '展開全域性角色庫') : ''"
           @click="toggleFold('global')"
         >
           <Icon v-if="globalFoldable" name="chevron" class="bbi-fold-caret" :class="{ 'is-collapsed': !globalShown }" />
-          <span class="bbi-field-label">全局角色库</span>
+          <span class="bbi-field-label">全域性角色庫</span>
           <span v-if="globalFoldable" class="bbi-count">{{ globalCharTagLib.entries.length }}</span>
         </button>
-        <button class="bbi-add-mini" type="button" title="添加全局角色" @click="addEntry('global')">
+        <button class="bbi-add-mini" type="button" title="新增全域性角色" @click="addEntry('global')">
           <Icon name="plus" />
         </button>
       </div>
-      <!-- grid 1fr↔0fr 收展:高度自适应、无需写死 max-height -->
+      <!-- grid 1fr↔0fr 收展:高度自適應、無需寫死 max-height -->
       <div class="bbi-fold-wrap" :class="{ 'is-collapsed': !globalShown }">
         <div class="bbi-fold-inner">
           <p class="bbi-field-hint">
-            所有聊天生效,仅手动维护——AI 不会修改全局角色,适合玩家角色等固定形象。本聊天有同名角色时以本聊天为准。
+            所有聊天生效,僅手動維護——AI 不會修改全域性角色,適合玩家角色等固定形象。本聊天有同名角色時以本聊天為準。
           </p>
           <ul v-if="globalCharTagLib.entries.length" class="bbi-char-grid">
           <li v-for="entry in globalCharTagLib.entries" :key="entry.name" class="bbi-char-card">
@@ -365,9 +426,9 @@ function sourceLabel(entry: CharTagEntry): string {
               <span class="bbi-char-card-head">
                 <span class="bbi-char-name">{{ entry.name }}</span>
                 <span class="bbi-char-pills">
-                  <span class="bbi-char-pill is-global">全局</span>
-                  <span v-if="charTagBaseNames.has(entry.name)" class="bbi-char-pill is-override" title="本聊天有同名角色,当前聊天以本聊天的为准">
-                    本聊天已覆盖
+                  <span class="bbi-char-pill is-global">全域性</span>
+                  <span v-if="charTagBaseNames.has(entry.name)" class="bbi-char-pill is-override" title="本聊天有同名角色,當前聊天以本聊天的為準">
+                    本聊天已覆蓋
                   </span>
                 </span>
               </span>
@@ -381,7 +442,7 @@ function sourceLabel(entry: CharTagEntry): string {
           </li>
           </ul>
           <p v-else class="bbi-char-empty">
-            还没有全局角色。在本聊天角色的编辑弹窗里点「提升为全局」,或点右上角「+」添加。
+            還沒有全域性角色。在本聊天角色的編輯彈窗裡點「提升為全域性」,或點右上角「+」新增。
           </p>
         </div>
       </div>
@@ -396,21 +457,21 @@ function sourceLabel(entry: CharTagEntry): string {
           :class="{ 'is-static': !chatFoldable }"
           :disabled="!chatFoldable"
           :aria-expanded="chatShown"
-          :title="chatFoldable ? (chatShown ? '收起本聊天角色' : '展开本聊天角色') : ''"
+          :title="chatFoldable ? (chatShown ? '收起本聊天角色' : '展開本聊天角色') : ''"
           @click="toggleFold('chat')"
         >
           <Icon v-if="chatFoldable" name="chevron" class="bbi-fold-caret" :class="{ 'is-collapsed': !chatShown }" />
           <span class="bbi-field-label">本聊天角色</span>
           <span v-if="chatFoldable" class="bbi-count">{{ chatEntries.length }}</span>
         </button>
-        <button class="bbi-add-mini" type="button" title="添加本聊天角色" @click="addEntry('chat')">
+        <button class="bbi-add-mini" type="button" title="新增本聊天角色" @click="addEntry('chat')">
           <Icon name="plus" />
         </button>
       </div>
       <div class="bbi-fold-wrap" :class="{ 'is-collapsed': !chatShown }">
         <div class="bbi-fold-inner">
           <p class="bbi-field-hint">
-            仅当前聊天生效:柏宝书角色自动建档,AI 随剧情报告永久变化;可查看历史并回滚。
+            僅當前聊天生效:Horae角色自動建檔,AI 隨劇情報告永久變化;可檢視歷史並回滾。
           </p>
           <ul v-if="chatEntries.length" class="bbi-char-grid">
           <li v-for="entry in chatEntries" :key="entry.name" class="bbi-char-card">
@@ -424,13 +485,13 @@ function sourceLabel(entry: CharTagEntry): string {
                   >
                     {{ sourceLabel(entry) }}
                   </span>
-                  <span v-if="globalNameSet.has(entry.name)" class="bbi-char-pill is-override" title="与全局库同名,当前聊天以本条为准">
-                    覆盖全局
+                  <span v-if="globalNameSet.has(entry.name)" class="bbi-char-pill is-override" title="與全域性庫同名,當前聊天以本條為準">
+                    覆蓋全域性
                   </span>
                   <span
                     v-if="entry.history.length"
                     class="bbi-char-history-badge"
-                    :title="`${entry.history.length} 条变更记录,点卡片查看`"
+                    :title="`${entry.history.length} 條變更記錄,點卡片檢視`"
                   >
                     <Icon name="history" />{{ entry.history.length }}
                   </span>
@@ -446,28 +507,28 @@ function sourceLabel(entry: CharTagEntry): string {
           </li>
           </ul>
           <p v-else class="bbi-char-empty">
-            本聊天还没有角色。生成 tag 时柏宝书角色会自动建档,也可点右上角「+」手动补。
+            本聊天還沒有角色。生成 tag 時Horae角色會自動建檔,也可點右上角「+」手動補。
           </p>
         </div>
       </div>
     </div>
 
-    <!-- ===== 角色编辑弹窗 ===== -->
+    <!-- ===== 角色編輯彈窗 ===== -->
     <ModalMask :open="!!draft" @close="closeEntry">
-      <div v-if="draft" class="bbi-modal bbi-char-modal" role="dialog" aria-modal="true" aria-label="编辑角色">
+      <div v-if="draft" class="bbi-modal bbi-char-modal" role="dialog" aria-modal="true" aria-label="編輯角色">
         <header class="bbi-modal-head">
           <span class="bbi-modal-title">
-            {{ editingName ? '编辑角色' : '添加角色' }}
+            {{ editingName ? '編輯角色' : '新增角色' }}
             <span v-if="editingName" class="bbi-char-pill" :class="editingScope === 'global' ? 'is-global' : 'is-chat'">
-              {{ editingScope === 'global' ? '全局' : '本聊天' }}
+              {{ editingScope === 'global' ? '全域性' : '本聊天' }}
             </span>
           </span>
-          <button class="bbi-icon-mini" type="button" title="关闭" @click="closeEntry"><Icon name="close" /></button>
+          <button class="bbi-icon-mini" type="button" title="關閉" @click="closeEntry"><Icon name="close" /></button>
         </header>
 
-        <!-- 作用域:仅新建时可选;已有条目换层用底部「提升为全局 / 复制到本聊天」 -->
+        <!-- 作用域:僅新建時可選;已有條目換層用底部「提升為全域性 / 複製到本聊天」 -->
         <div v-if="!editingName" class="bbi-modal-field">
-          <span class="bbi-modal-label">保存到</span>
+          <span class="bbi-modal-label">儲存到</span>
           <div class="bbi-segmented">
             <button
               class="bbi-seg"
@@ -483,22 +544,22 @@ function sourceLabel(entry: CharTagEntry): string {
               type="button"
               @click="draftScope = 'global'"
             >
-              全局
+              全域性
             </button>
           </div>
           <span class="bbi-field-hint">
-            {{ draftScope === 'global' ? '全局:所有聊天生效,AI 不会修改,tag 有问题需手动改。' : '本聊天:仅当前聊天,AI 可随剧情自动变更。' }}
+            {{ draftScope === 'global' ? '全域性:所有聊天生效,AI 不會修改,tag 有問題需手動改。' : '本聊天:僅當前聊天,AI 可隨劇情自動變更。' }}
           </span>
         </div>
 
         <label class="bbi-modal-field">
           <span class="bbi-modal-label">角色名</span>
-          <input v-model="draft.name" class="bbi-input" placeholder="与正文/柏宝书中的名字一致" @input="markManual" />
+          <input v-model="draft.name" class="bbi-input" placeholder="與正文/Horae中的名字一致" @input="markManual" />
         </label>
-        <span class="bbi-field-hint">按这个名字去正文和柏宝书角色参考里匹配;AI 引用时也用它(@角色名)。改名不会自动跟随。</span>
+        <span class="bbi-field-hint">名字要和正文、Horae 記錄的寫法一模一樣(包括間隔號「・」),前面不要加 @,否則會對不上這個角色。改名不會自動跟隨。</span>
 
         <div class="bbi-modal-field">
-          <span class="bbi-modal-label">外貌字段</span>
+          <span class="bbi-modal-label">外貌欄位</span>
           <div class="bbi-char-form">
             <label
               v-for="f in CHAR_TAG_FIELDS"
@@ -516,43 +577,43 @@ function sourceLabel(entry: CharTagEntry): string {
             </label>
           </div>
         </div>
-        <span class="bbi-field-hint">只写固定基础特征;服装、表情、动作不入库,每次按剧情生成。</span>
+        <span class="bbi-field-hint">只寫固定基礎特徵;服裝、表情、動作不入庫,每次按劇情生成。</span>
 
         <label class="bbi-modal-field">
-          <span class="bbi-modal-label">整串模式(可选)</span>
+          <span class="bbi-modal-label">整串模式(可選)</span>
           <BbiTextarea
             v-model="draft.raw"
             :rows="2"
             :max-rows="6"
             mono
-            placeholder="留空则用上面的字段拼接;填了整串且字段全空时,以整串为准(旧数据格式)"
+            placeholder="留空則用上面的欄位拼接;填了整串且欄位全空時,以整串為準(舊資料格式)"
             @input="markManual"
           />
         </label>
 
         <label class="bbi-modal-field">
-          <span class="bbi-modal-label">自然语言外貌(可选)</span>
+          <span class="bbi-modal-label">自然語言外貌(可選)</span>
           <BbiTextarea
             v-model="draft.nl"
             :rows="2"
             :max-rows="4"
             mono
-            placeholder="一句连贯英文外貌描述,自然语言模式下替换 nl 里的 @角色名 用;留空则用 tag 串替换"
+            placeholder="一句連貫的英文外貌描述(可不填)"
             @input="markManual"
           />
         </label>
 
         <div class="bbi-char-preview">
-          <span class="bbi-field-label">最终 tag 预览</span>
+          <span class="bbi-field-label">最終 tag 預覽</span>
           <code class="bbi-char-preview-tag">{{ previewTag || '(空)' }}</code>
           <span v-if="draftIsRaw" class="bbi-char-preview-mode">整串模式</span>
         </div>
 
-        <!-- 变更历史:仅本聊天条目;全局条目无历史(AI 不可改,手动编辑不留痕) -->
+        <!-- 變更歷史:僅本聊天條目;全域性條目無歷史(AI 不可改,手動編輯不留痕) -->
         <div v-if="editingHistory.length" class="bbi-char-history">
           <button class="bbi-char-history-toggle" type="button" @click="historyOpen = !historyOpen">
             <span class="bbi-char-history-caret" :class="{ 'is-open': historyOpen }"><Icon name="chevron" /></span>
-            变更历史({{ editingHistory.length }})
+            變更歷史({{ editingHistory.length }})
           </button>
           <ul v-if="historyOpen" class="bbi-char-history-list">
             <li v-for="(record, i) in [...editingHistory].reverse()" :key="i" class="bbi-char-history-item">
@@ -563,10 +624,10 @@ function sourceLabel(entry: CharTagEntry): string {
                   <template v-else>{{ record.to }}</template>
                 </span>
                 <span v-if="record.reason" class="bbi-char-history-reason">{{ record.reason }}</span>
-                <span class="bbi-char-history-meta">{{ record.floor >= 0 ? `第${record.floor}楼` : '手动' }}·{{ new Date(record.at).toLocaleString() }}</span>
+                <span class="bbi-char-history-meta">{{ record.floor >= 0 ? `第${record.floor}樓` : '手動' }}·{{ new Date(record.at).toLocaleString() }}</span>
               </div>
-              <button class="bbi-btn bbi-btn-sm" type="button" title="把该字段回滚到变更前的值" @click="askRollback(record)">
-                回滚
+              <button class="bbi-btn bbi-btn-sm" type="button" title="把該欄位回滾到變更前的值" @click="askRollback(record)">
+                回滾
               </button>
             </li>
           </ul>
@@ -574,86 +635,86 @@ function sourceLabel(entry: CharTagEntry): string {
 
         <footer class="bbi-modal-foot">
           <button v-if="editingName" class="bbi-btn bbi-btn-danger" type="button" @click="askRemove">
-            <Icon name="trash" /> 删除
+            <Icon name="trash" /> 刪除
           </button>
           <span class="bbi-modal-foot-spacer"></span>
           <button
             v-if="editingName && editingScope === 'chat'"
             class="bbi-btn"
             type="button"
-            title="把当前外貌快照进全局库,所有聊天生效;本聊天副本与变更记录将清除"
+            title="把當前外貌快照進全域性庫,所有聊天生效;本聊天副本與變更記錄將清除"
             @click="askPromote"
           >
-            <Icon name="star" /> 提升为全局
+            <Icon name="star" /> 提升為全域性
           </button>
           <button
             v-if="editingName && editingScope === 'global'"
             class="bbi-btn"
             type="button"
-            title="复制为本聊天副本:之后本聊天以副本为准,AI 可对其变更"
+            title="複製為本聊天副本:之後本聊天以副本為準,AI 可對其變更"
             @click="copyToChat"
           >
-            <Icon name="copy" /> 复制到本聊天
+            <Icon name="copy" /> 複製到本聊天
           </button>
           <button
             class="bbi-btn"
             type="button"
-            title="读取柏宝书最新状态里该角色的外貌,重新转换成字段"
+            title="讀取Horae最新狀態裡該角色的外貌,重新轉換成欄位"
             :disabled="regenerating"
-            @click="regenerateFromBook"
+            @click="regenerateFromHorae"
           >
-            <Icon name="refresh" /> {{ regenerating ? '生成中…' : '从柏宝书生成' }}
+            <Icon name="refresh" /> {{ regenerating ? '生成中…' : '從Horae生成' }}
           </button>
           <button class="bbi-btn bbi-btn-primary" type="button" @click="confirmEntry">完成</button>
         </footer>
 
         <ConfirmDialog
           v-model:open="confirmDeleteOpen"
-          title="删除角色"
-          confirm-text="删除"
+          title="刪除角色"
+          confirm-text="刪除"
           confirm-icon="trash"
           tone="danger"
           top-layer
           @confirm="confirmRemove"
         >
-          确定删除「{{ editingName }}」的固定外貌 tag 吗?之后生成时该角色的外貌将不再锚定。
+          確定刪除「{{ editingName }}」的固定外貌 tag 嗎?之後生成時該角色的外貌將不再錨定。
         </ConfirmDialog>
 
         <ConfirmDialog
           v-model:open="confirmPromoteOpen"
-          title="提升为全局"
+          title="提升為全域性"
           confirm-text="提升"
           confirm-icon="star"
           top-layer
           @confirm="confirmPromote"
         >
-          把「{{ editingName }}」的当前外貌快照进全局库?之后所有聊天(包括本聊天)都以全局值为准,
-          AI 不能再修改它;本聊天的副本与变更记录将被清除。
+          把「{{ editingName }}」的當前外貌快照進全域性庫?之後所有聊天(包括本聊天)都以全域性值為準,
+          AI 不能再修改它;本聊天的副本與變更記錄將被清除。
         </ConfirmDialog>
       </div>
     </ModalMask>
 
-    <!-- ===== 回滚确认 ===== -->
+    <!-- ===== 回滾確認 ===== -->
     <ConfirmDialog
       v-model:open="confirmRollbackOpen"
-      title="回滚变更"
-      confirm-text="回滚"
+      title="回滾變更"
+      confirm-text="回滾"
       tone="danger"
       top-layer
       @confirm="confirmRollback"
     >
       <template v-if="pendingRollback">
-        把「{{ pendingRollback.name }}」的「{{ fieldLabel(pendingRollback.record.field) }}」从
-        <code>{{ pendingRollback.record.to }}</code> 回滚到
+        把「{{ pendingRollback.name }}」的「{{ fieldLabel(pendingRollback.record.field) }}」從
+        <code>{{ pendingRollback.record.to }}</code> 回滾到
         <code>{{ pendingRollback.record.from || '(空)' }}</code> ?
-        建档记录的回滚会删除整个条目。
+        建檔記錄的回滾會刪除整個條目。
       </template>
     </ConfirmDialog>
   </section>
 </template>
 
 <style scoped>
-/* —— 计数药丸:与设置页版本号同款观感 —— */
+/* —— 計數藥丸:與設定頁版本號同款觀感 —— */
 .bbi-count {
   border: 0;
   padding: 7px 12px;
@@ -666,7 +727,7 @@ function sourceLabel(entry: CharTagEntry): string {
   line-height: 1;
 }
 
-/* —— 分区 —— */
+/* —— 分割槽 —— */
 .bbi-char-section {
   display: flex;
   flex-direction: column;
@@ -680,8 +741,8 @@ function sourceLabel(entry: CharTagEntry): string {
   gap: 12px;
 }
 
-/* —— 折叠开关(参照柏宝书「计划/悬念」)——
- * 标题行整体可点:左箭头 + 标题 + 计数标。无框透明,折叠是辅助操作,标题仍是主体。 */
+/* —— 摺疊開關 ——
+ * 標題行整體可點:左箭頭 + 標題 + 計數標。無框透明,摺疊是輔助操作,標題仍是主體。 */
 .bbi-fold-head {
   flex: 1 1 auto;
   min-width: 0;
@@ -698,7 +759,7 @@ function sourceLabel(entry: CharTagEntry): string {
 .bbi-fold-head.is-static {
   cursor: default;
 }
-/* 折叠箭头:展开朝下,收拢转 -90° 朝右。描边继承 currentColor(muted),hover 整行点亮强调色。 */
+/* 摺疊箭頭:展開朝下,收攏轉 -90° 朝右。描邊繼承 currentColor(muted),hover 整行點亮強調色。 */
 .bbi-fold-caret {
   flex: 0 0 auto;
   color: var(--bbi-ink-muted);
@@ -712,7 +773,7 @@ function sourceLabel(entry: CharTagEntry): string {
   color: var(--bbi-accent);
 }
 
-/* 可收展容器:grid 1fr↔0fr,高度随内容自适应,无需写死 max-height */
+/* 可收展容器:grid 1fr↔0fr,高度隨內容自適應,無需寫死 max-height */
 .bbi-fold-wrap {
   display: grid;
   grid-template-rows: 1fr;
@@ -729,7 +790,7 @@ function sourceLabel(entry: CharTagEntry): string {
   gap: 8px;
 }
 
-/* 区头右侧小「+」:透明底,hover 才点亮,不喷宾夺主 */
+/* 區頭右側小「+」:透明底,hover 才點亮,不噴賓奪主 */
 .bbi-add-mini {
   flex: 0 0 auto;
   display: inline-flex;
@@ -758,7 +819,7 @@ function sourceLabel(entry: CharTagEntry): string {
   font-size: 12.5px;
 }
 
-/* —— 角色卡片网格 —— */
+/* —— 角色卡片網格 —— */
 .bbi-char-grid {
   list-style: none;
   margin: 0;
@@ -814,7 +875,7 @@ function sourceLabel(entry: CharTagEntry): string {
   gap: 6px;
 }
 
-/* —— 徽标药丸:全局=实心强调;柏宝书/AI=强调浅底;手动=弱化;覆盖=警示色 —— */
+/* —— 徽標藥丸:全域性=實心強調;Horae/AI=強調淺底;手動=弱化;覆蓋=警示色 —— */
 .bbi-char-pill {
   font-size: 11px;
   font-weight: 600;
@@ -845,7 +906,7 @@ function sourceLabel(entry: CharTagEntry): string {
   border-color: transparent;
 }
 
-/* —— 字段 chips:两行封顶,超出裁切 —— */
+/* —— 欄位 chips:兩行封頂,超出裁切 —— */
 .bbi-char-chips {
   display: flex;
   flex-wrap: wrap;
@@ -863,7 +924,7 @@ function sourceLabel(entry: CharTagEntry): string {
   border: 1px solid var(--bbi-line);
   white-space: nowrap;
 }
-/* 整串模式:mono 小字两行截断 */
+/* 整串模式:mono 小字兩行截斷 */
 .bbi-char-raw {
   font-family: var(--bbi-font-mono);
   font-size: 12px;
@@ -883,12 +944,12 @@ function sourceLabel(entry: CharTagEntry): string {
   color: var(--bbi-ink-muted);
 }
 
-/* —— 弹窗加宽,容纳两列字段表单 —— */
+/* —— 彈窗加寬,容納兩列欄位表單 —— */
 .bbi-char-modal {
   max-width: 600px;
 }
 
-/* —— 字段表单:两列网格,固定着装独占一行 —— */
+/* —— 欄位表單:兩列網格,固定著裝獨佔一行 —— */
 .bbi-char-form {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -909,7 +970,7 @@ function sourceLabel(entry: CharTagEntry): string {
   color: var(--bbi-ink-soft);
 }
 
-/* —— 弹窗内历史面板 —— */
+/* —— 彈窗內歷史面板 —— */
 .bbi-char-history {
   display: flex;
   flex-direction: column;
@@ -985,7 +1046,7 @@ function sourceLabel(entry: CharTagEntry): string {
   color: var(--bbi-ink-muted);
 }
 
-/* —— 最终 tag 预览 —— */
+/* —— 最終 tag 預覽 —— */
 .bbi-char-preview {
   display: flex;
   align-items: center;

@@ -19,7 +19,7 @@ export interface WorkflowBinding {
   node: string;
   input: string;
   purpose: WorkflowBindingPurpose;
-  /** 需要跨每张图保留的原提示词片段编号；文本由插件按编号读取，AI不复制原文。 */
+  /** 需要跨每張圖保留的原提示詞片段編號；文本由外掛按編號讀取，AI不複製原文。 */
   keep?: string[];
 }
 
@@ -45,33 +45,33 @@ const PURPOSES = new Set<WorkflowBindingPurpose>([
   'height',
 ]);
 
-const SYSTEM_PROMPT = `你是 ComfyUI API 格式工作流的动态参数定位器。你只负责判断现有节点的哪个 inputs 字段承担什么用途，不得重写工作流。
+const SYSTEM_PROMPT = `你是 ComfyUI API 格式工作流的動態引數定位器。你只負責判斷現有節點的哪個 inputs 欄位承擔什麼用途，不得重寫工作流。
 
-只返回一个 JSON 对象，不要 Markdown、解释或思维过程：
+只返回一個 JSON 物件，不要 Markdown、解釋或思維過程：
 {"bindings":[{"node":"6","input":"text","purpose":"positive_combined","keep":["F1","F2"]}]}
 
 purpose 只能是：
-- positive_tag：正向 danbooru/tag 提示词输入。
-- positive_nl：与 tag 分开的自然语言正向输入。
-- positive_combined：同一个文本输入同时接收 tag 与自然语言；原值同时包含逗号 tag 和完整句子，或该模型用同一编码器接收两者时选择此项。
-- negative：负面提示词输入。
-- seed：主生成链使用的随机种子。
-- width / height：主生成画布或初始 latent 的宽高。
+- positive_tag：正向 danbooru/tag 提示詞輸入。
+- positive_nl：與 tag 分開的自然語言正向輸入。
+- positive_combined：同一個文本輸入同時接收 tag 與自然語言；原值同時包含逗號 tag 和完整句子，或該模型用同一編碼器接收兩者時選擇此項。
+- negative：負面提示詞輸入。
+- seed：主生成鏈使用的隨機種子。
+- width / height：主生成畫布或初始 latent 的寬高。
 
-规则：
-1. node 和 input 必须逐字对应工作流中真实存在的节点 ID 与 inputs 键。
-2. 只选择值为字符串或数字的可编辑输入，不得选择形如 ["节点ID", 输出序号] 的连线数组。
-3. 同一输入只能选择一个 purpose；tag 与自然语言共用时必须选 positive_combined。
-4. 可以返回多个同用途输入，例如双编码器、多个同步 seed。
-5. 不要选择模型名、LoRA、采样步数、CFG、采样器、调度器、放大/裁剪/预览尺寸。
-6. width/height 只标记主生成尺寸，不标记后期放大、裁剪或输出尺寸。
-7. 文本输入会提供 fragments。keep 只能填写该输入中需要跨所有图片永久保留的片段 ID：
-   - 正向保留质量词、模型/LoRA触发词、固定风格词、固定评级词。
-   - 正向删除导出示例里的角色数量、人物外貌、服装、动作、场景、构图、光线和自然语言画面描述。
-   - 同一风格已由简短触发词表达时，不再保留自然语言中的重复风格句。
-   - 负向保留通用质量、解剖、伪影和固定风格排除词；删除只针对导出示例人物或场景的临时排除词。
-   - 不得复制片段文本，只返回 ID；没有固定片段就返回空数组。seed/width/height 的 keep 必须为空数组。
-8. 至少必须找到一个 positive_tag 或 positive_combined。无法可靠确认的输入不要猜。`;
+規則：
+1. node 和 input 必須逐字對應工作流中真實存在的節點 ID 與 inputs 鍵。
+2. 只選擇值為字串或數字的可編輯輸入，不得選擇形如 ["節點ID", 輸出序號] 的連線陣列。
+3. 同一輸入只能選擇一個 purpose；tag 與自然語言共用時必須選 positive_combined。
+4. 可以返回多個同用途輸入，例如雙編碼器、多個同步 seed。
+5. 不要選擇模型名、LoRA、取樣步數、CFG、取樣器、排程器、放大/裁剪/預覽尺寸。
+6. width/height 只標記主生成尺寸，不標記後期放大、裁剪或輸出尺寸。
+7. 文本輸入會提供 fragments。keep 只能填寫該輸入中需要跨所有圖片永久保留的片段 ID：
+   - 正向保留質量詞、模型/LoRA觸發詞、固定風格詞、固定評級詞。
+   - 正向刪除匯出示例裡的角色數量、人物外貌、服裝、動作、場景、構圖、光線和自然語言畫面描述。
+   - 同一風格已由簡短觸發詞表達時，不再保留自然語言中的重複風格句。
+   - 負向保留通用質量、解剖、偽影和固定風格排除詞；刪除只針對匯出示例人物或場景的臨時排除詞。
+   - 不得複製片段文本，只返回 ID；沒有固定片段就返回空陣列。seed/width/height 的 keep 必須為空陣列。
+8. 至少必須找到一個 positive_tag 或 positive_combined。無法可靠確認的輸入不要猜。`;
 
 interface PromptFragment {
   id: string;
@@ -155,14 +155,14 @@ export function parseWorkflowBindings(raw: string): WorkflowBinding[] {
       parsed = JSON.parse(candidate);
       break;
     } catch {
-      // 尝试下一个 JSON 候选。
+      // 嘗試下一個 JSON 候選。
     }
   }
   if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
-    throw new Error('AI 没有返回可解析的工作流定位 JSON');
+    throw new Error('AI 沒有返回可解析的工作流定位 JSON');
   }
   const bindings = (parsed as Record<string, unknown>).bindings;
-  if (!Array.isArray(bindings)) throw new Error('AI 返回结果缺少 bindings 数组');
+  if (!Array.isArray(bindings)) throw new Error('AI 返回結果缺少 bindings 陣列');
 
   const byPath = new Map<string, WorkflowBinding>();
   for (const item of bindings) {
@@ -198,7 +198,7 @@ export function parseWorkflowBindings(raw: string): WorkflowBinding[] {
       });
       continue;
     }
-    throw new Error(`AI 为节点 ${node}.${input} 返回了互相冲突的用途`);
+    throw new Error(`AI 為節點 ${node}.${input} 返回了互相沖突的用途`);
   }
   return [...byPath.values()];
 }
@@ -222,7 +222,7 @@ function fixedText(value: string, keep: string[], binding: WorkflowBinding): str
   const available = new Map(fragments.map(fragment => [fragment.id, fragment.text]));
   const unknown = keep.filter(id => !available.has(id));
   if (unknown.length) {
-    throw new Error(`AI 为节点 ${binding.node}.${binding.input} 返回了不存在的片段：${unknown.join('、')}`);
+    throw new Error(`AI 為節點 ${binding.node}.${binding.input} 返回了不存在的片段：${unknown.join('、')}`);
   }
   return fragments
     .filter(fragment => keep.includes(fragment.id))
@@ -244,18 +244,18 @@ function renderTextBinding(value: string, binding: WorkflowBinding): string {
 function editableInput(workflow: ComfyWorkflow, binding: WorkflowBinding): string | number {
   const node = workflow[binding.node];
   if (!node || typeof node !== 'object' || Array.isArray(node)) {
-    throw new Error(`AI 返回的节点 ${binding.node} 不存在`);
+    throw new Error(`AI 返回的節點 ${binding.node} 不存在`);
   }
   const inputs = node.inputs;
   if (!inputs || typeof inputs !== 'object' || Array.isArray(inputs)) {
-    throw new Error(`节点 ${binding.node} 没有可编辑的 inputs`);
+    throw new Error(`節點 ${binding.node} 沒有可編輯的 inputs`);
   }
   if (!Object.hasOwn(inputs, binding.input)) {
-    throw new Error(`节点 ${binding.node} 不存在输入 ${binding.input}`);
+    throw new Error(`節點 ${binding.node} 不存在輸入 ${binding.input}`);
   }
   const value = (inputs as Record<string, unknown>)[binding.input];
   if (typeof value !== 'string' && typeof value !== 'number') {
-    throw new Error(`节点 ${binding.node}.${binding.input} 不是可直接替换的文本或数字输入`);
+    throw new Error(`節點 ${binding.node}.${binding.input} 不是可直接替換的文本或數字輸入`);
   }
   return value;
 }
@@ -284,11 +284,11 @@ export function applyWorkflowBindings(template: string, bindings: WorkflowBindin
   }
 
   if (!hasPositive && !getWorkflowPlaceholders(template).includes('prompt')) {
-    throw new Error('AI 没有找到正向提示词输入');
+    throw new Error('AI 沒有找到正向提示詞輸入');
   }
   const rendered = JSON.stringify(workflow, null, 2);
   if (!getWorkflowPlaceholders(rendered).includes('prompt')) {
-    throw new Error('自动配置后的工作流仍缺少 %prompt%');
+    throw new Error('自動配置後的工作流仍缺少 %prompt%');
   }
   return { workflow: rendered, changes, nlMode, hasNegative };
 }
@@ -302,7 +302,7 @@ export async function configureWorkflowWithAi(
     { role: 'system', content: SYSTEM_PROMPT },
     {
       role: 'user',
-      content: `请定位以下 ComfyUI API 工作流的动态输入。文本值已拆成片段编号：\n${JSON.stringify(workflowAnalysisPayload(workflow))}`,
+      content: `請定位以下 ComfyUI API 工作流的動態輸入。文本值已拆成片段編號：\n${JSON.stringify(workflowAnalysisPayload(workflow))}`,
     },
   ];
   const channel = getTagGenChannel();

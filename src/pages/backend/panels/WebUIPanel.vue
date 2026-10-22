@@ -4,19 +4,19 @@ import Icon from '@/components/Icon.vue';
 import { settings } from '@/state/settings';
 import { ref } from 'vue';
 
-// 占位状态,功能接入后移到 settings.webui
+// 佔位狀態,功能接入後移到 settings.webui
 const hiresFix = ref(false);
 </script>
 
 <template>
   <div class="panel">
-    <p class="bbi-page-intro">Stable Diffusion WebUI(A1111 / Forge / reForge),走其 /sdapi/v1 接口。</p>
+    <p class="bbi-page-intro">Stable Diffusion WebUI(A1111 / Forge / reForge),走其 /sdapi/v1 介面。</p>
 
     <div class="bbi-sections">
       <Collapsible title="配置" :open="false">
         <div class="bbi-field">
           <div class="bbi-field-head">
-            <span class="bbi-field-label">服务地址</span>
+            <span class="bbi-field-label">服務地址</span>
           </div>
           <input
             class="bbi-input"
@@ -29,7 +29,7 @@ const hiresFix = ref(false);
 
         <div class="bbi-field">
           <div class="bbi-field-head">
-            <span class="bbi-field-label">正面质量词</span>
+            <span class="bbi-field-label">正面質量詞</span>
           </div>
           <input
             class="bbi-input"
@@ -38,12 +38,12 @@ const hiresFix = ref(false);
             placeholder="masterpiece, best quality, ..."
             spellcheck="false"
           />
-          <p class="bbi-field-hint">生成时自动拼到正向提示词前面</p>
+          <p class="bbi-field-hint">生成時自動拼到正向提示詞前面</p>
         </div>
 
         <div class="bbi-field">
           <div class="bbi-field-head">
-            <span class="bbi-field-label">负面提示词</span>
+            <span class="bbi-field-label">負面提示詞</span>
           </div>
           <input
             class="bbi-input"
@@ -56,7 +56,7 @@ const hiresFix = ref(false);
 
         <div class="bbi-field">
           <div class="bbi-field-head">
-            <span class="bbi-field-label">分辨率</span>
+            <span class="bbi-field-label">解析度</span>
           </div>
           <input
             class="bbi-input"
@@ -68,34 +68,34 @@ const hiresFix = ref(false);
         </div>
 
         <div class="conn-actions">
-          <button class="bbi-btn" type="button" disabled title="功能开发中">
+          <button class="bbi-btn" type="button" disabled title="功能開發中">
             <Icon name="plug" />
-            测试连接
+            測試連線
           </button>
         </div>
       </Collapsible>
 
-      <Collapsible title="默认参数" :open="true">
+      <Collapsible title="預設引數" :open="true">
         <div class="be-grid">
           <div class="bbi-field">
             <div class="bbi-field-head">
               <span class="bbi-field-label">模型(Checkpoint)</span>
             </div>
             <select class="bbi-input bbi-select" disabled>
-              <option>(连接后自动拉取)</option>
+              <option>(連線後自動拉取)</option>
             </select>
           </div>
           <div class="bbi-field">
             <div class="bbi-field-head">
-              <span class="bbi-field-label">采样器</span>
+              <span class="bbi-field-label">取樣器</span>
             </div>
             <select class="bbi-input bbi-select" disabled>
-              <option>(连接后自动拉取)</option>
+              <option>(連線後自動拉取)</option>
             </select>
           </div>
           <div class="bbi-field">
             <div class="bbi-field-head">
-              <span class="bbi-field-label">步数</span>
+              <span class="bbi-field-label">步數</span>
             </div>
             <input class="bbi-input" type="number" placeholder="28" disabled />
           </div>
@@ -107,7 +107,7 @@ const hiresFix = ref(false);
           </div>
           <div class="bbi-field">
             <div class="bbi-field-head">
-              <span class="bbi-field-label">宽</span>
+              <span class="bbi-field-label">寬</span>
             </div>
             <input class="bbi-input" type="number" placeholder="832" disabled />
           </div>
@@ -119,10 +119,10 @@ const hiresFix = ref(false);
           </div>
         </div>
         <label class="bbi-switch-row">
-          <span class="bbi-field-label">Hires. fix(高清修复)</span>
+          <span class="bbi-field-label">Hires. fix(高清修復)</span>
           <input v-model="hiresFix" type="checkbox" class="bbi-checkbox" disabled />
         </label>
-        <p class="bbi-field-hint">参数功能开发中,当前仅展示。</p>
+        <p class="bbi-field-hint">引數功能開發中,當前僅展示。</p>
       </Collapsible>
     </div>
   </div>

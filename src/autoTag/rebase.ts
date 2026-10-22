@@ -1,35 +1,35 @@
 /**
- * 把模型给出的插入位置从「请求开始时的正文」平移到「写回时的正文」。
+ * 把模型給出的插入位置從「請求開始時的正文」平移到「寫回時的正文」。
  *
- * 为什么需要:副 API 分析要几秒到几十秒,期间别的插件常改正文(翻译、润色、追加状态栏、
- * 重写八股句)。旧实现在写回前整段比对正文,一处不同就放弃——哪怕改的是与画面毫无关系
- * 的部分,tag 也一并不注入。现在改成以「清洗后的叙事行」为锚重新定位:改动无关部分则
- * 位置分毫不动,真被改写的句子也照样落回它在新正文里的对应位置,不再丢 tag。
+ * 為什麼需要:副 API 分析要幾秒到幾十秒,期間別的外掛常改正文(翻譯、潤色、追加狀態列、
+ * 重寫八股句)。舊實現在寫回前整段比對正文,一處不同就放棄——哪怕改的是與畫面毫無關係
+ * 的部分,tag 也一併不注入。現在改成以「清洗後的敘事行」為錨重新定位:改動無關部分則
+ * 位置分毫不動,真被改寫的句子也照樣落回它在新正文裡的對應位置,不再丟 tag。
  *
- * 对齐口径:两份 segment 列表(prepareTargetText 的产物,天然只含清洗后活下来的叙事行)
- * 先按文本相等求最长公共子序列作骨架,骨架之间的空隙按序号比例配对——空隙里旧 1 条新 1 条
- * 正好是「那句话被改写了」,精确命中而非近似;整句消失的行回落到前一个已配对锚点。
+ * 對齊口徑:兩份 segment 列表(prepareTargetText 的產物,天然只含清洗後活下來的敘事行)
+ * 先按文本相等求最長公共子序列作骨架,骨架之間的空隙按序號比例配對——空隙裡舊 1 條新 1 條
+ * 正好是「那句話被改寫了」,精確命中而非近似;整句消失的行回落到前一個已配對錨點。
  *
- * 落点只能是当前正文的 segment,不能是裸行号:这样 tag 绝不会掉进别的插件刚追加的
- * 状态栏块内部——那些块在清洗阶段就已不构成 segment。
+ * 落點只能是當前正文的 segment,不能是裸行號:這樣 tag 絕不會掉進別的外掛剛追加的
+ * 狀態列塊內部——那些塊在清洗階段就已不構成 segment。
  */
 
 import { prepareTargetText, type TargetSegment } from '@/autoTag/clean';
 import type { ImageInsertion } from '@/autoTag/protocol';
 
-/** 超过此规模不跑 O(n*m) DP。正常楼层的叙事行数远小于此,超了只按比例映射。 */
+/** 超過此規模不跑 O(n*m) DP。正常樓層的敘事行數遠小於此,超了只按比例對映。 */
 const LCS_CELL_LIMIT = 250_000;
 
 /**
- * 文本相等的最长公共子序列,返回递增的 (旧序号, 新序号) 配对。
- * 规模超限时返回空骨架,交给调用方整体按比例映射(退化但不出错)。
+ * 文本相等的最長公共子序列,返回遞增的 (舊序號, 新序號) 配對。
+ * 規模超限時返回空骨架,交給呼叫方整體按比例對映(退化但不出錯)。
  */
 function lcsPairs(oldTexts: string[], newTexts: string[]): Array<[number, number]> {
   const n = oldTexts.length;
   const m = newTexts.length;
   if (!n || !m || n * m > LCS_CELL_LIMIT) return [];
 
-  // dp[i][j] = oldTexts[i..] 与 newTexts[j..] 的 LCS 长度(扁平化成一维,行宽 m+1)
+  // dp[i][j] = oldTexts[i..] 與 newTexts[j..] 的 LCS 長度(扁平化成一維,行寬 m+1)
   const width = m + 1;
   const dp = new Int32Array((n + 1) * width);
   for (let i = n - 1; i >= 0; i -= 1) {
@@ -59,8 +59,8 @@ function lcsPairs(oldTexts: string[], newTexts: string[]): Array<[number, number
 }
 
 /**
- * 旧 segment 序号 → 新 segment 序号的映射;配不上的位置留 -1。
- * 骨架(文本原样存在的行)先钉住,再在骨架切出的空隙里按序号比例配对。
+ * 舊 segment 序號 → 新 segment 序號的對映;配不上的位置留 -1。
+ * 骨架(文本原樣存在的行)先釘住,再在骨架切出的空隙裡按序號比例配對。
  */
 function alignSegments(oldTexts: string[], newTexts: string[]): number[] {
   const mapped = new Array<number>(oldTexts.length).fill(-1);
@@ -87,7 +87,7 @@ function alignSegments(oldTexts: string[], newTexts: string[]): number[] {
   return mapped;
 }
 
-/** 从 index 起向前找最近的已配对位置,前面没有再往后找。全都没有返回 -1。 */
+/** 從 index 起向前找最近的已配對位置,前面沒有再往後找。全都沒有返回 -1。 */
 function nearestMapped(mapped: number[], index: number): number {
   for (let i = index; i >= 0; i -= 1) {
     if (mapped[i] >= 0) return mapped[i];
@@ -99,11 +99,11 @@ function nearestMapped(mapped: number[], index: number): number {
 }
 
 export interface RebaseReport {
-  /** 锚点句原样存在:位置等价于没动。 */
+  /** 錨點句原樣存在:位置等價於沒動。 */
   anchored: number;
-  /** 锚点句被改写:按对齐结果落到它在新正文里的对应句。 */
+  /** 錨點句被改寫:按對齊結果落到它在新正文裡的對應句。 */
   remapped: number;
-  /** 锚点句整句消失:顺延到前一个锚点(宁可位置偏一点,也不丢 tag)。 */
+  /** 錨點句整句消失:順延到前一個錨點(寧可位置偏一點,也不丟 tag)。 */
   drifted: number;
 }
 
@@ -113,14 +113,14 @@ export interface RebaseResult {
 }
 
 /**
- * 按当前正文重算每张图的插入行。
+ * 按當前正文重算每張圖的插入行。
  *
- * plannedSegments 是模型当时看到的那份 segment 列表(runner 里 preparedTarget.segments),
- * currentText 是即将写回的正文基底。返回的 images 已按新行号升序(同行保持原相对顺序),
- * 可直接交给 injectImageTags。
+ * plannedSegments 是模型當時看到的那份 segment 列表(runner 裡 preparedTarget.segments),
+ * currentText 是即將寫回的正文基底。返回的 images 已按新行號升序(同行保持原相對順序),
+ * 可直接交給 injectImageTags。
  *
- * 返回 null 只在真正无从下手时:当前正文清洗后一条叙事行都不剩——此时任何落点都是瞎猜。
- * 句子被改写、被删、被整段追加内容都不算无从下手,一律给出落点。
+ * 返回 null 只在真正無從下手時:當前正文清洗後一條敘事行都不剩——此時任何落點都是瞎猜。
+ * 句子被改寫、被刪、被整段追加內容都不算無從下手,一律給出落點。
  */
 export function rebaseImagePositions(
   currentText: string,
@@ -143,7 +143,7 @@ export function rebaseImagePositions(
   const out: ImageInsertion[] = [];
   for (const image of images) {
     const oldIndex = oldByLine.get(image.sourceLine);
-    // sourceLine 本就来自 plannedSegments,对不上说明调用方传错了列表
+    // sourceLine 本就來自 plannedSegments,對不上說明呼叫方傳錯了列表
     if (oldIndex === undefined) return null;
     const direct = mapped[oldIndex];
     const target = direct >= 0 ? direct : nearestMapped(mapped, oldIndex);
@@ -155,7 +155,7 @@ export function rebaseImagePositions(
     out.push({ ...image, sourceLine: newSegments[target].sourceLine });
   }
 
-  // 升序保证叙事顺序单调;sort 稳定,落到同一行的图片保持模型给出的原相对顺序
+  // 升序保證敘事順序單調;sort 穩定,落到同一行的圖片保持模型給出的原相對順序
   out.sort((left, right) => left.sourceLine - right.sourceLine);
   return { images: out, report };
 }

@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ApiChannel } from '@/state/settings';
 import { buildRequestBody, extractContent, readSseContent, requestCompletion } from './client';
 
-/** 历史层全部 mock 掉:这里要断的正是「什么时候记成功/失败」 */
+/** 歷史層全部 mock 掉:這裡要斷的正是「什麼時候記成功/失敗」 */
 const h = vi.hoisted(() => ({
   beginLlm: vi.fn(() => 1),
   finishLlm: vi.fn(),
@@ -11,12 +11,12 @@ const h = vi.hoisted(() => ({
 }));
 
 vi.mock('@/state/history', () => ({
-  FOLLOW_MAIN_API: '跟随主 API',
+  FOLLOW_MAIN_API: '跟隨主 API',
   beginLlm: h.beginLlm,
   finishLlm: h.finishLlm,
   failLlm: h.failLlm,
   patchLlmTokens: h.patchLlmTokens,
-  // 与真实实现同语义:吞异常返回 null
+  // 與真實實現同語義:吞異常返回 null
   safeHistory: (fn: () => unknown) => {
     try {
       return fn();
@@ -39,7 +39,7 @@ function jsonResponse(data: unknown): Response {
 
 const channel: ApiChannel = {
   id: 'ch1',
-  name: '测试渠道',
+  name: '測試渠道',
   url: 'https://api.example.com',
   key: 'k',
   model: 'm',
@@ -52,13 +52,13 @@ const channel: ApiChannel = {
   reasoningEffort: '',
 };
 const messages = [{ role: 'user' as const, content: 'hi' }];
-/** 带 usage 的响应:避免触发 token 估算分支(那需要主界面分词器) */
+/** 帶 usage 的響應:避免觸發 token 估算分支(那需要主介面分詞器) */
 const okPayload = {
   choices: [{ message: { role: 'assistant', content: '  答案文本  ' } }],
   usage: { prompt_tokens: 5, completion_tokens: 7 },
 };
 
-/** 造一个最小 Response,可读出给定 SSE 文本 */
+/** 造一個最小 Response,可讀出給定 SSE 文本 */
 function sseResponse(text: string): Response {
   const bytes = new TextEncoder().encode(text);
   return new Response(
@@ -72,12 +72,12 @@ function sseResponse(text: string): Response {
   );
 }
 
-describe('buildRequestBody:思考强度与两条源分支', () => {
+describe('buildRequestBody:思考強度與兩條源分支', () => {
   const msgs = [{ role: 'user' as const, content: 'hi' }];
   const build = (over: Partial<typeof channel> = {}) =>
     buildRequestBody({ ...channel, ...over }, msgs, 'https://api.example.com/v1', false);
 
-  it('未设思考强度 → 走 openai 源(除新增的 tool_choice 外,请求体与加功能前一致)', () => {
+  it('未設思考強度 → 走 openai 源(除新增的 tool_choice 外,請求體與加功能前一致)', () => {
     expect(build()).toEqual({
       chat_completion_source: 'openai',
       reverse_proxy: 'https://api.example.com/v1',
@@ -93,26 +93,26 @@ describe('buildRequestBody:思考强度与两条源分支', () => {
     });
   });
 
-  it('两条源分支都带 tool_choice:none(给防截断类 fetch 拦截器的放行握手)', () => {
-    // Kemini 等预设脚本拦截所有 /generate 请求,看到调用方自带 tool_choice 就放行,
-    // 不再注入合成工具 + 控制消息(否则生图 tag 会被拖慢甚至逼出重试)。
+  it('兩條源分支都帶 tool_choice:none(給防截斷類 fetch 攔截器的放行握手)', () => {
+    // Kemini 等預設指令碼攔截所有 /generate 請求,看到呼叫方自帶 tool_choice 就放行,
+    // 不再注入合成工具 + 控制訊息(否則生圖 tag 會被拖慢甚至逼出重試)。
     expect(build().tool_choice).toBe('none');
     expect(build({ reasoningEffort: 'high' }).tool_choice).toBe('none');
-    // 若用户真想让第三方改写,可用 excludeParams 删掉它
+    // 若使用者真想讓第三方改寫,可用 excludeParams 刪掉它
     expect(build({ excludeParams: ['tool_choice'] }).tool_choice).toBeUndefined();
   });
 
-  it('设了思考强度 → 切 custom 源,并经 custom_include_body 透传', () => {
+  it('設了思考強度 → 切 custom 源,並經 custom_include_body 透傳', () => {
     const body = build({ reasoningEffort: 'high' });
     expect(body.chat_completion_source).toBe('custom');
     expect(body.custom_url).toBe('https://api.example.com/v1');
-    // 顶层不发 reasoning_effort:openai/custom 源都卡模型名白名单,
-    // 模型名恰好命中时会覆盖掉我们真正想发的值
+    // 頂層不發 reasoning_effort:openai/custom 源都卡模型名白名單,
+    // 模型名恰好命中時會覆蓋掉我們真正想發的值
     expect(body.reasoning_effort).toBeUndefined();
     expect(JSON.parse(body.custom_include_body as string)).toEqual({ reasoning_effort: 'high' });
   });
 
-  it('custom 源必须靠 header 带 key:proxy_password 在该源下不被读取', () => {
+  it('custom 源必須靠 header 帶 key:proxy_password 在該源下不被讀取', () => {
     const body = build({ reasoningEffort: 'high' });
     expect(body.proxy_password).toBeUndefined();
     expect(JSON.parse(body.custom_include_headers as string)).toEqual({
@@ -120,24 +120,24 @@ describe('buildRequestBody:思考强度与两条源分支', () => {
     });
   });
 
-  it('key 含 YAML 元字符时仍能安全注入(靠 JSON.stringify 转义)', () => {
-    // 手拼 YAML 会在这类 key 上解析失败;而 ST 的 mergeObjectWithYaml 是静默忽略,
-    // header 注入失败 → 退回读 ST 自己的 Custom 密钥 → 可能把别家的 key 发到本端点。
+  it('key 含 YAML 元字元時仍能安全注入(靠 JSON.stringify 轉義)', () => {
+    // 手拼 YAML 會在這類 key 上解析失敗;而 ST 的 mergeObjectWithYaml 是靜默忽略,
+    // header 注入失敗 → 退回讀 ST 自己的 Custom 金鑰 → 可能把別家的 key 發到本端點。
     const nasty = 'sk-a:b#c{d}e*f "g"';
     const body = build({ reasoningEffort: 'high', key: nasty });
     expect(JSON.parse(body.custom_include_headers as string).Authorization).toBe(`Bearer ${nasty}`);
   });
 
-  it('空白字符串视同未设(不误切 custom 源)', () => {
+  it('空白字串視同未設(不誤切 custom 源)', () => {
     expect(build({ reasoningEffort: '   ' }).chat_completion_source).toBe('openai');
   });
 
-  it('取值不做白名单:非常规值原样透传', () => {
-    const body = build({ reasoningEffort: '我自己的档位' });
-    expect(JSON.parse(body.custom_include_body as string).reasoning_effort).toBe('我自己的档位');
+  it('取值不做白名單:非常規值原樣透傳', () => {
+    const body = build({ reasoningEffort: '我自己的檔位' });
+    expect(JSON.parse(body.custom_include_body as string).reasoning_effort).toBe('我自己的檔位');
   });
 
-  it('excludeParams 在两条分支下都照常生效', () => {
+  it('excludeParams 在兩條分支下都照常生效', () => {
     expect(build({ excludeParams: ['temperature'] }).temperature).toBeUndefined();
     expect(
       build({ excludeParams: ['temperature'], reasoningEffort: 'high' }).temperature,
@@ -145,57 +145,57 @@ describe('buildRequestBody:思考强度与两条源分支', () => {
   });
 });
 
-describe('extractContent:标准响应', () => {
+describe('extractContent:標準響應', () => {
   it('message.content 正常提取', () => {
     const data = { choices: [{ message: { role: 'assistant', content: 'hello' } }] };
     expect(extractContent(data)).toBe('hello');
   });
 
-  it('兼容 choices[0].text 与顶层 content', () => {
+  it('相容 choices[0].text 與頂層 content', () => {
     expect(extractContent({ choices: [{ text: 'legacy' }] })).toBe('legacy');
     expect(extractContent({ content: 'top-level' })).toBe('top-level');
   });
 
-  it('content 为 content-parts 数组时拼接各段 text', () => {
+  it('content 為 content-parts 陣列時拼接各段 text', () => {
     const data = { choices: [{ message: { content: [{ type: 'text', text: 'a' }, { type: 'text', text: 'b' }] } }] };
     expect(extractContent(data)).toBe('ab');
   });
 
-  it('content 为 null 时返回空串而非抛错', () => {
+  it('content 為 null 時返回空串而非拋錯', () => {
     const data = { choices: [{ message: { role: 'assistant', content: null, refusal: null } }] };
     expect(extractContent(data)).toBe('');
   });
 });
 
-describe('extractContent:推理模型把答案塞进 reasoning', () => {
-  it('content 为空时回退 reasoning', () => {
+describe('extractContent:推理模型把答案塞進 reasoning', () => {
+  it('content 為空時回退 reasoning', () => {
     const data = {
       choices: [{
         message: {
           role: 'assistant',
           content: null,
-          reasoning: '思考过程…\n\n{"images":[],"changes":[]}',
+          reasoning: '思考過程…\n\n{"images":[],"changes":[]}',
         },
       }],
     };
     expect(extractContent(data)).toContain('"images"');
   });
 
-  it('content 为空时回退 reasoning_content(DeepSeek 标准字段)', () => {
+  it('content 為空時回退 reasoning_content(DeepSeek 標準欄位)', () => {
     const data = {
       choices: [{
-        message: { role: 'assistant', content: null, reasoning_content: '答案在里' },
+        message: { role: 'assistant', content: null, reasoning_content: '答案在裡' },
       }],
     };
-    expect(extractContent(data)).toBe('答案在里');
+    expect(extractContent(data)).toBe('答案在裡');
   });
 
-  it('content 为空时回退 thinking', () => {
+  it('content 為空時回退 thinking', () => {
     const data = { choices: [{ message: { content: null, thinking: 'via thinking' } }] };
     expect(extractContent(data)).toBe('via thinking');
   });
 
-  it('content 非空时绝不混入 reasoning', () => {
+  it('content 非空時絕不混入 reasoning', () => {
     const data = {
       choices: [{
         message: { role: 'assistant', content: 'final answer', reasoning: 'chain of thought' },
@@ -216,7 +216,7 @@ describe('readSseContent:流式', () => {
     await expect(readSseContent(sseResponse(sse))).resolves.toBe('Hello');
   });
 
-  it('content 全空时回退拼接 reasoning 增量', async () => {
+  it('content 全空時回退拼接 reasoning 增量', async () => {
     const sse = [
       'data: {"choices":[{"delta":{"reasoning":"思考"}}]}',
       'data: {"choices":[{"delta":{"reasoning_content":"…{\\"images\\":[]}"}}]}',
@@ -227,7 +227,7 @@ describe('readSseContent:流式', () => {
     await expect(readSseContent(sseResponse(sse))).resolves.toContain('"images"');
   });
 
-  it('content 出现后忽略 reasoning,不拼接', async () => {
+  it('content 出現後忽略 reasoning,不拼接', async () => {
     const sse = [
       'data: {"choices":[{"delta":{"reasoning":"先想"}}]}',
       'data: {"choices":[{"delta":{"content":"答案"}}]}',
@@ -239,7 +239,7 @@ describe('readSseContent:流式', () => {
   });
 });
 
-describe('validate:历史「成功」= 调用方验收通过', () => {
+describe('validate:歷史「成功」= 呼叫方驗收通過', () => {
   beforeEach(() => {
     h.beginLlm.mockClear();
     h.finishLlm.mockClear();
@@ -247,37 +247,37 @@ describe('validate:历史「成功」= 调用方验收通过', () => {
     vi.stubGlobal('fetch', vi.fn(async () => jsonResponse(okPayload)));
   });
 
-  it('验收通过 → 返回文本,历史记成功', async () => {
+  it('驗收通過 → 返回文本,歷史記成功', async () => {
     const seen: string[] = [];
     const text = await requestCompletion(channel, messages, {
       validate: raw => seen.push(raw),
     });
     expect(text).toBe('答案文本');
-    expect(seen).toEqual(['答案文本']); // validate 拿到的是提取后的正文
+    expect(seen).toEqual(['答案文本']); // validate 拿到的是提取後的正文
     expect(h.finishLlm).toHaveBeenCalledTimes(1);
     expect(h.failLlm).not.toHaveBeenCalled();
   });
 
-  it('不传 validate → 维持旧行为:拿到文本即记成功', async () => {
+  it('不傳 validate → 維持舊行為:拿到文本即記成功', async () => {
     await expect(requestCompletion(channel, messages)).resolves.toBe('答案文本');
     expect(h.finishLlm).toHaveBeenCalledTimes(1);
   });
 
-  it('验收抛错 → 请求按失败抛出,历史记失败而非成功', async () => {
-    // 这是「HTTP 成功但协议解析不过」的场景:必须 failLlm,否则重试会在历史里
-    // 留下两条绿色成功记录,看历史的人会误以为成功也重复调用。
+  it('驗收拋錯 → 請求按失敗丟擲,歷史記失敗而非成功', async () => {
+    // 這是「HTTP 成功但協議解析不過」的場景:必須 failLlm,否則重試會在歷史裡
+    // 留下兩條綠色成功記錄,看歷史的人會誤以為成功也重複呼叫。
     await expect(
       requestCompletion(channel, messages, {
         validate: () => {
-          throw new Error('协议不合法');
+          throw new Error('協議不合法');
         },
       }),
-    ).rejects.toThrow('协议不合法');
+    ).rejects.toThrow('協議不合法');
     expect(h.finishLlm).not.toHaveBeenCalled();
-    expect(h.failLlm).toHaveBeenCalledWith(1, '协议不合法', false);
+    expect(h.failLlm).toHaveBeenCalledWith(1, '協議不合法', false);
   });
 
-  it('HTTP 失败时 validate 根本不该被调用', async () => {
+  it('HTTP 失敗時 validate 根本不該被呼叫', async () => {
     vi.stubGlobal(
       'fetch',
       vi.fn(async () => new Response('boom', { status: 500 })),

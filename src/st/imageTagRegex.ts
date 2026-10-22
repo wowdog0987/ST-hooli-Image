@@ -3,47 +3,47 @@ import { normalizeOrientation, type Orientation } from '@/backends/size';
 import { getContext } from '@/st/context';
 
 /**
- * 柏宝绘生图 tag 的两条托管正则（DESIGN-FLOOR-UI.md §4）：
+ * 虎哩繪生圖 tag 的兩條託管正則（DESIGN-FLOOR-UI.md §4）：
  *
- * - bbi-image-tag-slot（markdownOnly）：显示路径把 <bbi_image>…</bbi_image> 整体
- *   替换为空锚点 <div data-bbi-slot=""></div>，提示词永不进 DOM。
- * - bbi-image-tag-hide（promptOnly）：提示词路径把同一 tag 替换为空字符串。
+ * - hooli-image-tag-slot（markdownOnly）：顯示路徑把 <hooli_image>…</hooli_image> 整體
+ *   替換為空錨點 <div data-hooli-slot=""></div>，提示詞永不進 DOM。
+ * - hooli-image-tag-hide（promptOnly）：提示詞路徑把同一 tag 替換為空字串。
  *
- * 两条规则 find 相同、生效路径互斥（引擎条件 markdownOnly&&isMarkdown 与
- * promptOnly&&isPrompt 不会同时命中），可安全共存。
+ * 兩條規則 find 相同、生效路徑互斥（引擎條件 markdownOnly&&isMarkdown 與
+ * promptOnly&&isPrompt 不會同時命中），可安全共存。
  */
 
-export const IMAGE_TAG_FIND_REGEX_LITERAL = '/<bbi_image>[\\s\\S]+?<\\/bbi_image>/gi';
+export const IMAGE_TAG_FIND_REGEX_LITERAL = '/<hooli_image>[\\s\\S]+?<\\/hooli_image>/gi';
 
-/** 与托管脚本同源的运行时正则：解析 message.mes 原文里的 tag（水合配对用）。 */
-export const IMAGE_TAG_FIND_REGEX = /<bbi_image>[\s\S]+?<\/bbi_image>/gi;
+/** 與託管指令碼同源的執行時正則：解析 message.mes 原文裡的 tag（水合配對用）。 */
+export const IMAGE_TAG_FIND_REGEX = /<hooli_image>[\s\S]+?<\/hooli_image>/gi;
 
-/** 显示侧锚点 DOM 选择器（锚点只用 data 属性，class 会被 DOMPurify 加 custom- 前缀）。 */
-export const BBI_SLOT_SELECTOR = 'div[data-bbi-slot]';
+/** 顯示側錨點 DOM 選擇器（錨點只用 data 屬性，class 會被 DOMPurify 加 custom- 字首）。 */
+export const BBI_SLOT_SELECTOR = 'div[data-hooli-slot]';
 
-export const IMAGE_TAG_SLOT_REGEX_ID = 'bbi-image-tag-slot';
-export const IMAGE_TAG_HIDE_REGEX_ID = 'bbi-image-tag-hide';
+export const IMAGE_TAG_SLOT_REGEX_ID = 'hooli-image-tag-slot';
+export const IMAGE_TAG_HIDE_REGEX_ID = 'hooli-image-tag-hide';
 
-// regex_placement：0=MD_DISPLAY(已弃用) / 1=USER_INPUT / 2=AI_OUTPUT / 3=SLASH_COMMAND。
-// 显示路径的 placement 随消息类型变化（script.js getRegexPlacement）：
-// 用户消息→1,AI 楼层→2,而 **extra.type === 'narrator' 的楼层→3**；
-// 提示词路径(script.js Generate)只按 is_user 二选一,只会是 1 或 2。
+// regex_placement：0=MD_DISPLAY(已棄用) / 1=USER_INPUT / 2=AI_OUTPUT / 3=SLASH_COMMAND。
+// 顯示路徑的 placement 隨訊息型別變化（script.js getRegexPlacement）：
+// 使用者訊息→1,AI 樓層→2,而 **extra.type === 'narrator' 的樓層→3**；
+// 提示詞路徑(script.js Generate)只按 is_user 二選一,只會是 1 或 2。
 const PLACEMENT_USER_INPUT = 1;
 const PLACEMENT_AI_OUTPUT = 2;
 /**
- * 旁白楼(/narrator、/sys 等 extra.type='narrator')的显示 placement。
+ * 旁白樓(/narrator、/sys 等 extra.type='narrator')的顯示 placement。
  *
- * 必须带上它:`/narrator` 造出的楼是 `is_system:false` + `extra.type:'narrator'`,
- * 于是 st/context.ts 的 isAiStoryMessage **认它是剧情楼**——自动 tag 会往里写 tag。
- * 而显示侧 getRegexPlacement 给这种楼派的是 3,只写 [1,2] 的话锚点正则整条不命中:
- * tag 原文不被替换,DOMPurify 剥掉不认识的 `<bbi_image>` 壳、把里面的提示词当正文留下,
- * 用户直接看到一串 danbooru tag,且没有锚点 = 没有卡片。
- * 「tag 永不进 DOM」这条不变式在这一类楼上是破的。
+ * 必須帶上它:`/narrator` 造出的樓是 `is_system:false` + `extra.type:'narrator'`,
+ * 於是 st/context.ts 的 isAiStoryMessage **認它是劇情樓**——自動 tag 會往裡寫 tag。
+ * 而顯示側 getRegexPlacement 給這種樓派的是 3,只寫 [1,2] 的話錨點正則整條不命中:
+ * tag 原文不被替換,DOMPurify 剝掉不認識的 `<hooli_image>` 殼、把裡面的提示詞當正文留下,
+ * 使用者直接看到一串 danbooru tag,且沒有錨點 = 沒有卡片。
+ * 「tag 永不進 DOM」這條不變式在這一類樓上是破的。
  *
- * 提示词侧那条(hide)同样带上:它是 promptOnly,只在 isPrompt 时生效,而 ST 自己
- * 从不用 (SLASH_COMMAND, isPrompt) 这个组合,故对现有路径是无操作;带上它是为了
- * 「tag 永不进提示词」在第三方也调 getRegexedString 时依然成立——replaceString 是空串,
- * 多覆盖一个 placement 不会有副作用。两条规则 placement 保持一致也更好推理。
+ * 提示詞側那條(hide)同樣帶上:它是 promptOnly,只在 isPrompt 時生效,而 ST 自己
+ * 從不用 (SLASH_COMMAND, isPrompt) 這個組合,故對現有路徑是無操作;帶上它是為了
+ * 「tag 永不進提示詞」在第三方也調 getRegexedString 時依然成立——replaceString 是空串,
+ * 多覆蓋一個 placement 不會有副作用。兩條規則 placement 保持一致也更好推理。
  */
 const PLACEMENT_SLASH_COMMAND = 3;
 
@@ -65,13 +65,13 @@ export interface ManagedRegexScript extends Record<string, unknown> {
   runOnEdit: boolean;
 }
 
-/** 显示侧：生图 tag → 空锚点（水合时 Vue 卡片渲染进锚点）。 */
+/** 顯示側：生圖 tag → 空錨點（水合時 Vue 卡片渲染進錨點）。 */
 export function imageTagSlotScript(): ManagedRegexScript {
   return {
     id: IMAGE_TAG_SLOT_REGEX_ID,
-    scriptName: '柏宝绘 · 生图标签占位',
+    scriptName: '虎哩繪 · 生圖標籤佔位',
     findRegex: IMAGE_TAG_FIND_REGEX_LITERAL,
-    replaceString: '<div data-bbi-slot=""></div>',
+    replaceString: '<div data-hooli-slot=""></div>',
     trimStrings: [],
     placement: [...DISPLAY_AND_PROMPT_PLACEMENTS],
     disabled: false,
@@ -84,11 +84,11 @@ export function imageTagSlotScript(): ManagedRegexScript {
   };
 }
 
-/** 提示词侧：生图 tag → 空串（提示词路径彻底移除，永不外泄）。 */
+/** 提示詞側：生圖 tag → 空串（提示詞路徑徹底移除，永不外洩）。 */
 export function imageTagHideScript(): ManagedRegexScript {
   return {
     id: IMAGE_TAG_HIDE_REGEX_ID,
-    scriptName: '柏宝绘 · 隐藏生图标签',
+    scriptName: '虎哩繪 · 隱藏生圖標籤',
     findRegex: IMAGE_TAG_FIND_REGEX_LITERAL,
     replaceString: '',
     trimStrings: [],
@@ -103,39 +103,39 @@ export function imageTagHideScript(): ManagedRegexScript {
   };
 }
 
-/** 从消息原文按出现顺序解析全部生图 tag；无 tag 返回空数组。 */
+/** 從訊息原文按出現順序解析全部生圖 tag；無 tag 返回空陣列。 */
 export function parseImageTags(mes: string): string[] {
   return mes.match(IMAGE_TAG_FIND_REGEX) ?? [];
 }
 
 /**
- * 正文里是否有生图 tag 的痕迹——**含只剩半截的孤立开/闭标签**。
+ * 正文裡是否有生圖 tag 的痕跡——**含只剩半截的孤立開/閉標籤**。
  *
- * **只有这一份**:楼层按钮判断「要不要先弹重新生成确认」与 runner 判断「要不要跳过
- * 已有 tag 的楼」共用它。两侧各写一条正则的后果:按钮那份只认开标签,正文里只剩一个
- * `</bbi_image>` 时按钮以为没 tag(不弹确认、传 replace=false),runner 那份认开也认闭、
- * 于是以为有 tag 而静默放弃——用户看到的就是「按钮点了永远没反应」。
+ * **只有這一份**:樓層按鈕判斷「要不要先彈重新生成確認」與 runner 判斷「要不要跳過
+ * 已有 tag 的樓」共用它。兩側各寫一條正則的後果:按鈕那份只認開標籤,正文裡只剩一個
+ * `</hooli_image>` 時按鈕以為沒 tag(不彈確認、傳 replace=false),runner 那份認開也認閉、
+ * 於是以為有 tag 而靜默放棄——使用者看到的就是「按鈕點了永遠沒反應」。
  */
 export function hasImageTagTrace(mes: string): boolean {
-  return /<\/?bbi_image\b/i.test(mes ?? '');
+  return /<\/?hooli_image\b/i.test(mes ?? '');
 }
 
 /**
- * 剔除消息里的全部生图 tag（重新生成前用）。
- * 插件注入的 tag 独占一行（注入形态：行文本 + 换行 + tag），连同前行换行一起删，
- * 恰好还原注入前原文；手写内联 tag 前面没有换行，仅删 tag 本身。
+ * 剔除訊息裡的全部生圖 tag（重新生成前用）。
+ * 外掛注入的 tag 獨佔一行（注入形態：行文本 + 換行 + tag），連同前行換行一起刪，
+ * 恰好還原注入前原文；手寫內聯 tag 前面沒有換行，僅刪 tag 本身。
  *
- * 为什么不能直接 `.replace(查找正则, '')`:那条正则是非贪婪的,正文里多出一个半截的
- * `<bbi_image>`(AI 照着上下文模仿只写了一半、或 tag 被别的插件截断)时,它会从这个
- * 残骸一路吃到下一个 `</bbi_image>`,把中间的正文连同后面那条真 tag 一起删掉。
- * 故改为逐 token 扫:闭标签与**最近一个未配对的开标签**成对(整段删),扫完仍落单的
- * 开/闭标签只删自己。残骸必须清干净——留着它,ST 显示侧那条同样非贪婪的锚点正则
- * 会把正文吞进锚点(破图)。
+ * 為什麼不能直接 `.replace(查詢正則, '')`:那條正則是非貪婪的,正文裡多出一個半截的
+ * `<hooli_image>`(AI 照著上下文模仿只寫了一半、或 tag 被別的外掛截斷)時,它會從這個
+ * 殘骸一路吃到下一個 `</hooli_image>`,把中間的正文連同後面那條真 tag 一起刪掉。
+ * 故改為逐 token 掃:閉標籤與**最近一個未配對的開標籤**成對(整段刪),掃完仍落單的
+ * 開/閉標籤只刪自己。殘骸必須清乾淨——留著它,ST 顯示側那條同樣非貪婪的錨點正則
+ * 會把正文吞進錨點(破圖)。
  */
 export function stripImageTags(mes: string): string {
   const source = String(mes ?? '');
-  // 就地新建:模块级带 /g 的正则实例 lastIndex 有状态,exec 循环不能共用(同 replaceImageTagAt)
-  const tokens = /<\/?bbi_image\b[^>]*>/gi;
+  // 就地新建:模組級帶 /g 的正則例項 lastIndex 有狀態,exec 迴圈不能共用(同 replaceImageTagAt)
+  const tokens = /<\/?hooli_image\b[^>]*>/gi;
   const ranges: Array<{ start: number; end: number }> = [];
   const openStack: Array<{ start: number; end: number }> = [];
   for (let match = tokens.exec(source); match; match = tokens.exec(source)) {
@@ -155,7 +155,7 @@ export function stripImageTags(mes: string): string {
   let out = '';
   let cursor = 0;
   for (const range of ranges) {
-    // `O O C C` 这种嵌套下外层区间已经把内层吃掉了,跳过
+    // `O O C C` 這種巢狀下外層區間已經把內層吃掉了,跳過
     if (range.start < cursor) continue;
     out += source.slice(cursor, range.start).replace(/(?:\r\n|\n|\r)$/, '');
     cursor = range.end;
@@ -164,44 +164,44 @@ export function stripImageTags(mes: string): string {
 }
 
 /**
- * tag / nl / negative 内容里不允许出现的子标签字面量（会污染 bbi_image 内部解析）。
+ * tag / nl / negative 內容裡不允許出現的子標籤字面量（會汙染 hooli_image 內部解析）。
  *
- * 唯一口径：AI 侧(autoTag/protocol.ts 的 sanitizeContent)与手输侧(提示词编辑弹窗)
- * 共用这一份。**绝不再抄第二份** —— 查找正则 `<bbi_image>…</bbi_image>` 是非贪婪的，
- * 内容里混进一个 `</bbi_image>` 就会让 tag 提前截断、后半截漏进 DOM 与提示词，
- * 正好破掉「tag 永不进 DOM、永不进提示词」这条不变式。
+ * 唯一口徑：AI 側(autoTag/protocol.ts 的 sanitizeContent)與手輸側(提示詞編輯彈窗)
+ * 共用這一份。**絕不再抄第二份** —— 查詢正則 `<hooli_image>…</hooli_image>` 是非貪婪的，
+ * 內容裡混進一個 `</hooli_image>` 就會讓 tag 提前截斷、後半截漏進 DOM 與提示詞，
+ * 正好破掉「tag 永不進 DOM、永不進提示詞」這條不變式。
  */
-export const FORBIDDEN_SUBTAG = /<\/?(?:bbi_image|tag|nl|negative|characters|size)\b/i;
+export const FORBIDDEN_SUBTAG = /<\/?(?:hooli_image|tag|nl|negative|characters|size)\b/i;
 
-/** 文本里是否含 bbi_image 子标签字面量（手输校验用；口径同 AI 侧）。 */
+/** 文本裡是否含 hooli_image 子標籤字面量（手輸校驗用；口徑同 AI 側）。 */
 export function containsTagMarkup(text: string): boolean {
   return FORBIDDEN_SUBTAG.test(text);
 }
 
 export interface ImageTagContent {
-  /** danbooru 短 tag 部分：显式 <tag> 子标签内容，或剔除子标签后的裸文本（存量格式）。 */
+  /** danbooru 短 tag 部分：顯式 <tag> 子標籤內容，或剔除子標籤後的裸文本（存量格式）。 */
   tag: string;
-  /** 自然语言部分：<nl> 子标签内容，无则空串。 */
+  /** 自然語言部分：<nl> 子標籤內容，無則空串。 */
   nl: string;
-  /** 本画面动态负面 tag：<negative> 子标签内容，无则空串。 */
+  /** 本畫面動態負面 tag：<negative> 子標籤內容，無則空串。 */
   negative: string;
   characters: ImageCharacterPrompt[];
-  /** 画幅方向：<size> 子标签内容，无/不可识别则竖屏（存量 tag 即走这条，行为与改动前一致）。 */
+  /** 畫幅方向：<size> 子標籤內容，無/不可識別則豎屏（存量 tag 即走這條，行為與改動前一致）。 */
   size: Orientation;
 }
 
 /**
- * 解析 tag 原文（含 <bbi_image> 壳）的内部内容。一条容忍式规则覆盖三种形态：
- * - <bbi_image>xxxx</bbi_image>                    裸文本 = tag（存量兼容）
- * - <bbi_image>xxxx<nl>yyyy</nl></bbi_image>       裸文本 = tag，<nl> = nl
- * - <bbi_image><tag>x</tag><negative>y</negative></bbi_image> 显式子标签（手写容忍）
- * 裸文本与显式 <tag> 同时存在时按「裸文本在前」以 ", " 合并进 tag 部分，不丢内容。
- * <size>/<nl>/<negative> 必须先剥掉，不能漏进正向提示词。
+ * 解析 tag 原文（含 <hooli_image> 殼）的內部內容。一條容忍式規則覆蓋三種形態：
+ * - <hooli_image>xxxx</hooli_image>                    裸文本 = tag（存量相容）
+ * - <hooli_image>xxxx<nl>yyyy</nl></hooli_image>       裸文本 = tag，<nl> = nl
+ * - <hooli_image><tag>x</tag><negative>y</negative></hooli_image> 顯式子標籤（手寫容忍）
+ * 裸文本與顯式 <tag> 同時存在時按「裸文本在前」以 ", " 合併進 tag 部分，不丟內容。
+ * <size>/<nl>/<negative> 必須先剝掉，不能漏進正向提示詞。
  */
 export function parseImageTagContent(raw: string): ImageTagContent {
-  // 内容统一折叠成单行:手写 tag 可能跨行,而提示词里换行没有意义
+  // 內容統一折疊成單行:手寫 tag 可能跨行,而提示詞裡換行沒有意義
   const oneLine = (text: string) => text.trim().replace(/[\r\n]+/g, ' ');
-  const inner = raw.replace(/^<bbi_image[^>]*>/i, '').replace(/<\/bbi_image>$/i, '');
+  const inner = raw.replace(/^<hooli_image[^>]*>/i, '').replace(/<\/hooli_image>$/i, '');
   const nlMatch = inner.match(/<nl>([\s\S]*?)<\/nl>/i);
   const nl = nlMatch ? oneLine(nlMatch[1]) : '';
   const negativeMatch = inner.match(/<negative>([\s\S]*?)<\/negative>/i);
@@ -241,14 +241,14 @@ export function parseImageTagContent(raw: string): ImageTagContent {
 }
 
 /**
- * 序列化成 tag 原文（含 <bbi_image> 壳）—— parseImageTagContent 的反向操作。
+ * 序列化成 tag 原文（含 <hooli_image> 殼）—— parseImageTagContent 的反向操作。
  *
- * **格式的读与写只有这一份**：注入(autoTag/protocol.ts 的 injectImageTags)与手动编辑
- * (floor/promptEditor.ts)共用，两处漂移会让「解析得到的字段」与「落进正文的原文」对不上，
- * 而 promptHash 吃的正是原文 —— 漂移直接表现为「什么都没改却全变 stale」。
+ * **格式的讀與寫只有這一份**：注入(autoTag/protocol.ts 的 injectImageTags)與手動編輯
+ * (floor/promptEditor.ts)共用，兩處漂移會讓「解析得到的欄位」與「落進正文的原文」對不上，
+ * 而 promptHash 吃的正是原文 —— 漂移直接表現為「什麼都沒改卻全變 stale」。
  *
- * 标准形态：tag 部分保持裸文本（与存量格式一致），nl/negative/characters 空则整段不写。
- * size **恒写出**：生成是延后的(点卡片才出图)，方向必须随 tag 持久化在正文里。
+ * 標準形態：tag 部分保持裸文本（與存量格式一致），nl/negative/characters 空則整段不寫。
+ * size **恆寫出**：生成是延後的(點卡片才出圖)，方向必須隨 tag 持久化在正文裡。
  */
 export function serializeImageTag(content: ImageTagContent): string {
   const nl = content.nl ? `<nl>${content.nl}</nl>` : '';
@@ -256,17 +256,17 @@ export function serializeImageTag(content: ImageTagContent): string {
   const characters = content.characters.length
     ? `<characters>${JSON.stringify(content.characters)}</characters>`
     : '';
-  return `<bbi_image>${content.tag}${nl}${negative}${characters}<size>${content.size}</size></bbi_image>`;
+  return `<hooli_image>${content.tag}${nl}${negative}${characters}<size>${content.size}</size></hooli_image>`;
 }
 
 /**
- * 提示词全文的**唯一展示口径**：楼层卡片（复制 / 灯箱 / 展开区）与图库共用。
+ * 提示詞全文的**唯一展示口徑**：樓層卡片（複製 / 燈箱 / 展開區）與相簿共用。
  *
- * 与 serializeImageTag 的分工:那个产出机器读的正文原文（会被 promptHash 吃），
- * 这个产出人读的纯文本（段间空行、角色分段）。两者都不许各自照抄第二份——
- * 图库要显示的必须与卡片上一字不差，否则同一张图在两处看到两种样子。
+ * 與 serializeImageTag 的分工:那個產出機器讀的正文原文（會被 promptHash 吃），
+ * 這個產出人讀的純文本（段間空行、角色分段）。兩者都不許各自照抄第二份——
+ * 相簿要顯示的必須與卡片上一字不差，否則同一張圖在兩處看到兩種樣子。
  *
- * size 刻意不出现:它是画幅方向，不是提示词内容，卡片上也从来不显示。
+ * size 刻意不出現:它是畫幅方向，不是提示詞內容，卡片上也從來不顯示。
  */
 export function formatPromptText(
   content: Pick<ImageTagContent, 'tag' | 'nl' | 'negative' | 'characters'>,
@@ -284,18 +284,18 @@ export function formatPromptText(
 }
 
 /**
- * 原位替换正文里第 seq 条 tag（0-based），其余正文与其它 tag 一字不动。
- * seq 越界返回 null（调用方据此放弃写回）。
+ * 原位替換正文裡第 seq 條 tag（0-based），其餘正文與其它 tag 一字不動。
+ * seq 越界返回 null（呼叫方據此放棄寫回）。
  *
- * 为什么不用模块级的 IMAGE_TAG_FIND_REGEX：那是个带 /g 的共享实例，lastIndex 有状态。
- * 现有调用方走的都是 .match()/.replace()（会重置 lastIndex）故相安无事，
- * 这里用 replace 回调按序计数，仍就地新建正则，不给后来者留下踩踏的余地。
+ * 為什麼不用模組級的 IMAGE_TAG_FIND_REGEX：那是個帶 /g 的共享例項，lastIndex 有狀態。
+ * 現有呼叫方走的都是 .match()/.replace()（會重置 lastIndex）故相安無事，
+ * 這裡用 replace 回撥按序計數，仍就地新建正則，不給後來者留下踩踏的餘地。
  */
 export function replaceImageTagAt(mes: string, seq: number, nextTag: string): string | null {
   if (!Number.isInteger(seq) || seq < 0) return null;
   let index = 0;
   let replaced = false;
-  const output = mes.replace(/<bbi_image>[\s\S]+?<\/bbi_image>/gi, match => {
+  const output = mes.replace(/<hooli_image>[\s\S]+?<\/hooli_image>/gi, match => {
     if (index++ !== seq) return match;
     replaced = true;
     return nextTag;
@@ -309,10 +309,10 @@ const MANAGED_SCRIPTS: Array<() => ManagedRegexScript> = [
 ];
 
 /**
- * 向 ST 全局正则列表注册柏宝绘托管规则。
- * 固定 id 保证幂等：旧版本或用户改动过的同 id 规则会被更新，其它正则原样保留，
- * 不重复添加。旧版单条 bbi-image-tag-hide（markdownOnly+promptOnly 双开）会被
- * 新 hide 定义原位覆盖，并新增 slot 规则，存量用户无缝迁移。
+ * 向 ST 全域性正則列表註冊虎哩繪託管規則。
+ * 固定 id 保證冪等：舊版本或使用者改動過的同 id 規則會被更新，其它正則原樣保留，
+ * 不重複新增。舊版單條 hooli-image-tag-hide（markdownOnly+promptOnly 雙開）會被
+ * 新 hide 定義原位覆蓋，並新增 slot 規則，存量使用者無縫遷移。
  */
 export function ensureImageTagRegexRegistered(): boolean {
   const context = getContext();

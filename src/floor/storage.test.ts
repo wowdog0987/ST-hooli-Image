@@ -27,7 +27,7 @@ function fakeEntry(overrides: Partial<BbiImageEntry> = {}): BbiImageEntry {
   return {
     generationId: 'g1',
     path: '/user/files/bbi_x.png',
-    prompt: '<bbi_image>a</bbi_image>',
+    prompt: '<hooli_image>a</hooli_image>',
     seed: null,
     status: 'ready',
     createdAt: 1000,
@@ -47,18 +47,18 @@ afterEach(() => vi.unstubAllGlobals());
 
 describe('promptHash', () => {
   it('is deterministic and 14 hex chars', () => {
-    const tag = '<bbi_image>1girl, moonlight</bbi_image>';
+    const tag = '<hooli_image>1girl, moonlight</hooli_image>';
     expect(promptHash(tag)).toBe(promptHash(tag));
     expect(promptHash(tag)).toMatch(/^[0-9a-f]{14}$/);
   });
 
   it('distinguishes different prompts', () => {
-    expect(promptHash('<bbi_image>a</bbi_image>')).not.toBe(
-      promptHash('<bbi_image>b</bbi_image>'),
+    expect(promptHash('<hooli_image>a</hooli_image>')).not.toBe(
+      promptHash('<hooli_image>b</hooli_image>'),
     );
-    // 编辑提示词内容 → hash 变化（stale 检测的根基）
-    expect(promptHash('<bbi_image>1girl, cat</bbi_image>')).not.toBe(
-      promptHash('<bbi_image>1girl, dog</bbi_image>'),
+    // 編輯提示詞內容 → hash 變化（stale 檢測的根基）
+    expect(promptHash('<hooli_image>1girl, cat</hooli_image>')).not.toBe(
+      promptHash('<hooli_image>1girl, dog</hooli_image>'),
     );
   });
 });
@@ -88,8 +88,8 @@ describe('sidecar naming', () => {
   });
 
   it('stays inside validateAssetFileName limits for real filenames', () => {
-    // 服务端 /api/files/upload 只收 /^[a-zA-Z0-9_\-.]+$/,名字不合规会 400
-    const name = sidecarFileName(imageFileName('柏宝/测试 卡', 1, 'h', 'g', 'png'));
+    // 服務端 /api/files/upload 只收 /^[a-zA-Z0-9_\-.]+$/,名字不合規會 400
+    const name = sidecarFileName(imageFileName('柏寶/測試 卡', 1, 'h', 'g', 'png'));
     expect(name).toMatch(/^[a-zA-Z0-9_\-.]+$/);
     expect(name.endsWith('.json')).toBe(true);
   });
@@ -101,7 +101,7 @@ describe('sidecar naming', () => {
   });
 
   it('returns empty for files this plugin did not name', () => {
-    // 外来文件算出来的侧写名必然 404,不该白发请求
+    // 外來檔案算出來的側寫名必然 404,不該白髮請求
     expect(sidecarPathFor('/user/images/柏宝绘_a/photo.png')).toBe('');
     expect(sidecarPathFor('/user/files/bbi-vibe-thumb-x.jpg')).toBe('');
     expect(sidecarPathFor('')).toBe('');
@@ -120,7 +120,7 @@ describe('store read helpers', () => {
   });
 
   it('isolates results by slot: same-hash entries of different slots stay separate', () => {
-    // 同一楼层两个 tag 内容相同（同 hash）→ 各自槽位独立取图，不串
+    // 同一樓層兩個 tag 內容相同（同 hash）→ 各自槽位獨立取圖，不串
     const store = appendEntry({}, 0, 'h', fakeEntry({ generationId: 'slot0', slotSeq: 0, createdAt: 1 }));
     const store2 = appendEntry(store, 0, 'h', fakeEntry({ generationId: 'slot1', slotSeq: 1, createdAt: 2 }));
     const store3 = appendEntry(store2, 0, 'h', fakeEntry({ generationId: 'slot0-again', slotSeq: 0, createdAt: 3 }));
@@ -153,19 +153,19 @@ describe('store read helpers', () => {
     const store3 = appendEntry(store2, 0, 'current', fakeEntry({ generationId: 'c', createdAt: 1, slotSeq: 0 }));
 
     expect(latestStaleEntry(store3, 0, 'current', 0)?.generationId).toBe('b');
-    // 排除自身键后返回其它键中最新的一条（old1 的 a 比 current 的 c 新）
+    // 排除自身鍵後返回其它鍵中最新的一條（old1 的 a 比 current 的 c 新）
     expect(latestStaleEntry(store3, 0, 'old2', 0)?.generationId).toBe('a');
     expect(latestStaleEntry(null, 0, 'x', 0)).toBeNull();
     expect(latestStaleEntry(store3, 9, 'x', 0)).toBeNull();
   });
 
   it('never reports a neighbor slot result as stale (multi-tag floor bug)', () => {
-    // 卡片 1 生成过（槽位 0），卡片 2（槽位 1）从未生成 → 卡片 2 必须 pending，
-    // 不得把卡片 1 的图当 stale 显示
+    // 卡片 1 生成過（槽位 0），卡片 2（槽位 1）從未生成 → 卡片 2 必須 pending，
+    // 不得把卡片 1 的圖當 stale 顯示
     const store = appendEntry({}, 0, 'hash-of-tag1', fakeEntry({ generationId: 'tag1-img', slotSeq: 0 }));
     expect(latestEntry(store, 0, 'hash-of-tag2', 1)).toBeNull();
     expect(latestStaleEntry(store, 0, 'hash-of-tag2', 1)).toBeNull();
-    // 但同槽位换提示词后，旧图仍可作 stale 显示
+    // 但同槽位換提示詞後，舊圖仍可作 stale 顯示
     expect(latestStaleEntry(store, 0, 'hash-of-tag1-edited', 0)?.generationId).toBe('tag1-img');
   });
 
@@ -197,7 +197,7 @@ describe('mutateStore (CAS)', () => {
     const ok = await mutateStore(ctx, 0, store => {
       calls += 1;
       if (calls === 1) {
-        // 模拟另一个任务抢先整体替换了 store 引用
+        // 模擬另一個任務搶先整體替換了 store 引用
         message.extra![BBI_IMAGE_EXTRA_KEY] = {};
       }
       return appendEntry(store, 0, 'h', fakeEntry({ generationId: `g${calls}` }));
@@ -205,7 +205,7 @@ describe('mutateStore (CAS)', () => {
 
     expect(ok).toBe(true);
     expect(calls).toBe(2);
-    // 基于最新引用的第二次写入生效
+    // 基於最新引用的第二次寫入生效
     expect(latestEntry(readStore(message), 0, 'h', 0)?.generationId).toBe('g2');
   });
 
@@ -248,7 +248,7 @@ describe('prepareImageForStorage', () => {
         toBlob,
       }),
     });
-    // 浏览器 FileReader.readAsDataURL 返回带 MIME 前缀的完整 Data URL
+    // 瀏覽器 FileReader.readAsDataURL 返回帶 MIME 字首的完整 Data URL
     vi.stubGlobal('FileReader', class {
       result: string | ArrayBuffer | null = null;
       onload: (() => void) | null = null;
@@ -268,7 +268,7 @@ describe('prepareImageForStorage', () => {
 
   it('falls back to the original format when reencode fails', async () => {
     settings.storage.saveAsJpeg = true;
-    // createImageBitmap 抛错 → 应回退 PNG 原样落盘
+    // createImageBitmap 拋錯 → 應回退 PNG 原樣落盤
     vi.stubGlobal('createImageBitmap', vi.fn(async () => {
       throw new Error('decode failed');
     }));
@@ -285,17 +285,17 @@ describe('saveImageResult', () => {
   });
 
   it.each([
-    { name: ' 柏宝 ', name2: '柏宝', groupId: undefined, characterName: '柏宝', storedName: '柏宝' },
+    { name: ' 柏寶 ', name2: '柏寶', groupId: undefined, characterName: '柏寶', storedName: '柏寶' },
     { name: ' 小雪 ', name2: '另一位角色', groupId: 'group-a', characterName: '小雪', storedName: '小雪' },
-    { name: ' ', name2: ' 柏宝 ', groupId: undefined, characterName: '柏宝', storedName: '柏宝' },
+    { name: ' ', name2: ' 柏寶 ', groupId: undefined, characterName: '柏寶', storedName: '柏寶' },
     { name: '', name2: undefined, groupId: undefined, characterName: '未命名角色', storedName: '未命名角色' },
     { name: ' ', name2: ' ', groupId: undefined, characterName: '未命名角色', storedName: '未命名角色' },
-    { name: '小雪/测试:卡?', name2: '', groupId: undefined, characterName: '小雪/测试:卡?', storedName: '小雪测试卡' },
+    { name: '小雪/測試:卡?', name2: '', groupId: undefined, characterName: '小雪/測試:卡?', storedName: '小雪測試卡' },
   ])('stores images by role with name=$name, name2=$name2, groupId=$groupId', async ({
     name, name2, groupId, characterName, storedName,
   }) => {
     const message = { ...fakeMessage(), name };
-    const tag = '<bbi_image>a</bbi_image>';
+    const tag = '<hooli_image>a</hooli_image>';
     const hash = promptHash(tag);
     const legacyEntry = fakeEntry();
     message.extra = { [BBI_IMAGE_EXTRA_KEY]: appendEntry({}, 0, hash, legacyEntry) };
@@ -333,13 +333,13 @@ describe('saveImageResult', () => {
         filename: imageName,
       }),
     });
-    // 第二发是侧写:图库跨聊天浏览时提示词的唯一来源
+    // 第二發是側寫:相簿跨聊天瀏覽時提示詞的唯一來源
     expect(fetchMock).toHaveBeenCalledTimes(2);
     const [sidecarUrl, sidecarInit] = fetchMock.mock.calls[1] as unknown as [string, RequestInit];
     expect(sidecarUrl).toBe('/api/files/upload');
     const sidecarBody = JSON.parse(String(sidecarInit.body)) as { name: string; data: string };
     expect(sidecarBody.name).toBe(sidecarFileName(imageName));
-    // 角色名含中文:btoa 直接吃码点 > 255 会抛,这里连带锁住「必须 UTF-8 编码」
+    // 角色名含中文:btoa 直接吃碼點 > 255 會拋,這裡連帶鎖住「必須 UTF-8 編碼」
     expect(JSON.parse(new TextDecoder().decode(Uint8Array.from(atob(sidecarBody.data), c => c.charCodeAt(0))))).toEqual({
       v: 1,
       character: characterName,
@@ -354,10 +354,10 @@ describe('saveImageResult', () => {
 
   it('keeps the image when the sidecar upload fails', async () => {
     const message = fakeMessage();
-    const tag = '<bbi_image>a</bbi_image>';
+    const tag = '<hooli_image>a</hooli_image>';
     const storedPath = '/user/images/柏宝绘_c/bbi_seeded.png';
     const saveChat = vi.fn(async () => undefined);
-    // 图片上传成功、侧写 500:图必须照常存下,只是没有提示词可看
+    // 圖片上傳成功、側寫 500:圖必須照常存下,只是沒有提示詞可看
     const fetchMock = vi.fn(async (url: string) =>
       url === '/api/files/upload'
         ? new Response('nope', { status: 500 })
@@ -402,7 +402,7 @@ describe('saveImageResult', () => {
     });
 
     const result = { url: 'data:image/png;base64,AAAA', filename: 'x.png', format: 'png', revoke() {} };
-    await expect(saveImageResult(0, 0, 0, '<bbi_image>a</bbi_image>', 1, result)).rejects.toThrow('500');
+    await expect(saveImageResult(0, 0, 0, '<hooli_image>a</hooli_image>', 1, result)).rejects.toThrow('500');
     expect(message.extra[BBI_IMAGE_EXTRA_KEY]).toBe(originalStore);
     expect(saveChat).not.toHaveBeenCalled();
     expect(fetchMock).toHaveBeenCalledTimes(1);
@@ -415,7 +415,7 @@ describe('saveExternalImage', () => {
   });
 
   it('lands in the gallery: 柏宝绘_ folder + a name sidecarPathFor can recognize', async () => {
-    const tag = '<bbi_image>1girl<size>portrait</size></bbi_image>';
+    const tag = '<hooli_image>1girl<size>portrait</size></hooli_image>';
     const storedPath = '/user/images/柏宝绘_小雪/bbi_seeded.png';
     const fetchMock = vi.fn(async (url: string) =>
       url === '/api/files/upload'
@@ -434,10 +434,10 @@ describe('saveExternalImage', () => {
       ch_name: string;
       filename: string;
     };
-    // 目录前缀是图库列图的唯一依据:换个前缀,图存下去了但图库里看不见
+    // 目錄字首是相簿列圖的唯一依據:換個字首,圖存下去了但相簿裡看不見
     expect(upload.ch_name).toBe('柏宝绘_小雪');
-    // 文件名必须过 sidecarPathFor 的正则,否则图库压根不去请求侧写——
-    // 症状是图在、提示词空白、且没有任何报错
+    // 檔名必須過 sidecarPathFor 的正則,否則相簿壓根不去請求側寫——
+    // 症狀是圖在、提示詞空白、且沒有任何報錯
     expect(sidecarPathFor(`/user/images/柏宝绘_小雪/${upload.filename}`)).toBe(
       `/user/files/${sidecarFileName(upload.filename)}`,
     );
@@ -461,7 +461,7 @@ describe('saveExternalImage', () => {
     });
 
     const result = { url: 'data:image/png;base64,AAAA', filename: 'x.png', format: 'png', revoke() {} };
-    await saveExternalImage('   ', '<bbi_image>a</bbi_image>', 1, result);
+    await saveExternalImage('   ', '<hooli_image>a</hooli_image>', 1, result);
 
     const upload = JSON.parse(String((fetchMock.mock.calls[0] as unknown as [string, RequestInit])[1].body)) as {
       ch_name: string;
@@ -481,7 +481,7 @@ describe('saveExternalImage', () => {
     });
 
     const result = { url: 'data:image/png;base64,AAAA', filename: 'x.png', format: 'png', revoke() {} };
-    await saveExternalImage('c', '<bbi_image>a</bbi_image>', 1, result);
+    await saveExternalImage('c', '<hooli_image>a</hooli_image>', 1, result);
     expect(saveChat).not.toHaveBeenCalled();
   });
 });
@@ -594,21 +594,21 @@ describe('deleteImageResult', () => {
 
 describe('deleteImageFileOnly', () => {
   it('decodes the encoded gallery src before calling the delete endpoints', async () => {
-    // 图库的 src 是逐段 encodeURIComponent 过的，而 ST 的删除接口不做解码：
-    // 编码路径原样发过去只会 404（图没删掉），这里锁死「先归一化再发请求」。
+    // 相簿的 src 是逐段 encodeURIComponent 過的，而 ST 的刪除介面不做解碼：
+    // 編碼路徑原樣發過去只會 404（圖沒刪掉），這裡鎖死「先歸一化再發請求」。
     const fetchMock = vi.fn(async () => new Response('OK', { status: 200 }));
     vi.stubGlobal('fetch', fetchMock);
     vi.stubGlobal('window', {
       SillyTavern: { getContext: () => ({ getRequestHeaders: () => ({}) }) },
     });
 
-    const src = `/user/images/${encodeURIComponent('柏宝绘_测试角色')}/bbi_abc_0_h-g1.png`;
+    const src = `/user/images/${encodeURIComponent('柏宝绘_測試角色')}/bbi_abc_0_h-g1.png`;
     await deleteImageFileOnly(src);
 
     expect(fetchMock).toHaveBeenNthCalledWith(1, '/api/images/delete', {
       method: 'POST',
       headers: {},
-      body: JSON.stringify({ path: 'user/images/柏宝绘_测试角色/bbi_abc_0_h-g1.png' }),
+      body: JSON.stringify({ path: 'user/images/柏宝绘_測試角色/bbi_abc_0_h-g1.png' }),
     });
     expect(fetchMock).toHaveBeenNthCalledWith(2, '/api/files/delete', {
       method: 'POST',

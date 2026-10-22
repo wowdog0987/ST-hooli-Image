@@ -41,7 +41,7 @@ async function refreshRenderedMessage(context: STContext, message: STMessage, fl
       await context.updateMessageBlock(floor, message);
       return;
     } catch {
-      // 局部刷新失败时再退回整段聊天重载。
+      // 區域性重新整理失敗時再退回整段聊天過載。
     }
   }
   await context.reloadCurrentChat?.();
@@ -57,17 +57,17 @@ export type ApplyMessageResult =
 
 export interface MessageExtraUpdate {
   key: string;
-  /** undefined = 删除该键。 */
+  /** undefined = 刪除該鍵。 */
   value: unknown;
 }
 
 /**
- * 判断槽位里的消息还是不是请求开始时那一条。
+ * 判斷槽位裡的訊息還是不是請求開始時那一條。
  *
- * 不用对象引用比对:别的插件改正文时常整体替换消息对象(chat[i] = {...chat[i], mes})，
- * 引用比对会把这种「同一条消息、只是换了个壳」误判成楼层变化,连带整次分析作废。
- * send_date 在消息创建时定死、编辑不变,配 name 足以认人;删楼导致索引平移时
- * send_date 必然不同,该拦的照样拦住。旧消息没有 send_date 时退回引用比对。
+ * 不用物件引用比對:別的外掛改正文時常整體替換訊息物件(chat[i] = {...chat[i], mes})，
+ * 引用比對會把這種「同一條訊息、只是換了個殼」誤判成樓層變化,連帶整次分析作廢。
+ * send_date 在訊息建立時定死、編輯不變,配 name 足以認人;刪樓導致索引平移時
+ * send_date 必然不同,該攔的照樣攔住。舊訊息沒有 send_date 時退回引用比對。
  */
 function isSameMessage(message: STMessage, expected: STMessage): boolean {
   if (message === expected) return true;
@@ -76,12 +76,12 @@ function isSameMessage(message: STMessage, expected: STMessage): boolean {
 }
 
 /**
- * 以 compare-and-swap 方式修改消息正文和一个 extra 键。
+ * 以 compare-and-swap 方式修改訊息正文和一個 extra 鍵。
  *
- * 身份检查(聊天 / 消息 / swipe)一致才落盘;正文内容本身**不**参与比对——正文由
- * buildNext 基于「落盘那一刻的真实正文」现算,别的插件在分析期间做的修改因此得以保留，
- * 而不是被请求开始时的旧快照覆盖。buildNext 返回 null 表示它认为这次不该写。
- * 保存失败时同时回滚正文与 extra，避免留下半写状态。
+ * 身份檢查(聊天 / 訊息 / swipe)一致才落盤;正文內容本身**不**參與比對——正文由
+ * buildNext 基於「落盤那一刻的真實正文」現算,別的外掛在分析期間做的修改因此得以保留，
+ * 而不是被請求開始時的舊快照覆蓋。buildNext 返回 null 表示它認為這次不該寫。
+ * 儲存失敗時同時回滾正文與 extra，避免留下半寫狀態。
  */
 export async function applyMessageText(
   floor: number,
@@ -100,7 +100,7 @@ export async function applyMessageText(
   if (expectedMessage && !isSameMessage(message, expectedMessage)) return 'floor-changed';
   if (currentSwipeId(message) !== expectedSwipeId) return 'swipe-changed';
 
-  // 编辑框开着时它才是正文的活口径(用户改了还没确认),落盘基底以它为准
+  // 編輯框開著時它才是正文的活口徑(使用者改了還沒確認),落盤基底以它為準
   const nextText = buildNext(activeEditorText(floor) ?? message.mes);
   if (nextText === null) return 'build-failed';
 
@@ -128,14 +128,14 @@ export async function applyMessageText(
   }
 
   await emitMessageEvent(context, context.eventTypes.MESSAGE_EDITED, floor).catch(error => {
-    console.warn('[柏宝绘] tag 已保存，但 MESSAGE_EDITED 事件发送失败', error);
+    console.warn('[虎哩繪] tag 已儲存，但 MESSAGE_EDITED 事件傳送失敗', error);
   });
   if (!settleActiveEditor(floor, message.mes)) {
     await refreshRenderedMessage(context, message, floor).catch(error => {
-      console.warn('[柏宝绘] tag 已保存，但楼层刷新失败', error);
+      console.warn('[虎哩繪] tag 已儲存，但樓層重新整理失敗', error);
     });
     await emitMessageEvent(context, context.eventTypes.MESSAGE_UPDATED, floor).catch(error => {
-      console.warn('[柏宝绘] tag 已保存，但 MESSAGE_UPDATED 事件发送失败', error);
+      console.warn('[虎哩繪] tag 已儲存，但 MESSAGE_UPDATED 事件傳送失敗', error);
     });
   }
   return 'saved';

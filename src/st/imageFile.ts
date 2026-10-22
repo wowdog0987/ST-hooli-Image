@@ -1,15 +1,15 @@
 /**
- * 图片文件的读取与缩放(DOM 侧小工具,与网络层 st/images.ts 分开)。
+ * 圖片檔案的讀取與縮放(DOM 側小工具,與網路層 st/images.ts 分開)。
  *
- * NaiPanel 的 vibe 缩略图与画师串预览图共用:canvas 重绘成 jpeg,
- * 既压体积也把 png/webp/gif 统一成静态 jpeg(gif 动图会丢掉动效,预览图不在意)。
+ * NaiPanel 的 vibe 縮圖與畫師串預覽圖共用:canvas 重繪成 jpeg,
+ * 既壓體積也把 png/webp/gif 統一成靜態 jpeg(gif 動圖會丟掉動效,預覽圖不在意)。
  */
 
 export function readFileAsDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(String(reader.result));
-    reader.onerror = () => reject(new Error('读取图片失败'));
+    reader.onerror = () => reject(new Error('讀取圖片失敗'));
     reader.readAsDataURL(file);
   });
 }
@@ -18,12 +18,12 @@ function loadImage(src: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.onload = () => resolve(img);
-    img.onerror = () => reject(new Error('图片加载失败'));
+    img.onerror = () => reject(new Error('圖片載入失敗'));
     img.src = src;
   });
 }
 
-/** 把 dataURL 图片缩到最长边 maxEdge 以内,重编码为 jpeg dataURL。 */
+/** 把 dataURL 圖片縮到最長邊 maxEdge 以內,重編碼為 jpeg dataURL。 */
 export async function makeJpegThumbnail(
   dataUrl: string,
   maxEdge: number,

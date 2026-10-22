@@ -1,20 +1,20 @@
 /**
- * 字体图标兜底:有些酒馆美化主题会把顶栏/聊天框里 .drawer-icon.fa-solid::before(或类似)
- * 的字体图标清空(content:''、color:transparent、font-size:0),改用 background-image 按
- * **每个按钮 id** 单独贴自定义图标。我们注入的按钮不在它们名单里,会变成一片空白。
+ * 字型圖示兜底:有些酒館美化主題會把頂欄/聊天框裡 .drawer-icon.fa-solid::before(或類似)
+ * 的字型圖示清空(content:''、color:transparent、font-size:0),改用 background-image 按
+ * **每個按鈕 id** 單獨貼自定義圖示。我們注入的按鈕不在它們名單裡,會變成一片空白。
  *
- * 这里用更高特异性(祖先 id + 自身 id)+ !important 压过那条通用规则,强制还原字形。
- * \f53f = fa-palette 的 Unicode(取自 ST 的 fontawesome.min.css,别凭记忆猜)。
+ * 這裡用更高特異性(祖先 id + 自身 id)+ !important 壓過那條通用規則,強制還原字形。
+ * \f53f = fa-palette 的 Unicode(取自 ST 的 fontawesome.min.css,別憑記憶猜)。
  *
- * 各注入点共用此函数:传入自身按钮 id 与图标元素的选择器,生成一段一次性 <style>。
+ * 各注入點共用此函式:傳入自身按鈕 id 與圖示元素的選擇器,生成一段一次性 <style>。
  */
 const PALETTE = '\\f53f';
 const injected = new Set<string>();
 
 /**
- * 确保某按钮的图标兜底样式已注入(按 styleId 去重,可重复调用)。
- * @param styleId   <style> 元素的 id(去重键)
- * @param selector  命中该按钮图标 ::before 的高特异性选择器(不含 ::before)
+ * 確保某按鈕的圖示兜底樣式已注入(按 styleId 去重,可重複呼叫)。
+ * @param styleId   <style> 元素的 id(去重鍵)
+ * @param selector  命中該按鈕圖示 ::before 的高特異性選擇器(不含 ::before)
  */
 export function ensureIconFallback(styleId: string, selector: string): void {
   if (injected.has(styleId) || document.getElementById(styleId)) {

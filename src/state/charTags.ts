@@ -2,15 +2,15 @@ import { getContext, type STMessage } from '@/st/context';
 import { reactive } from 'vue';
 
 /**
- * 角色固定外貌库。
+ * 角色固定外貌庫。
  *
- * 真源分三层:
- * - 全局库(跨聊天):extensionSettings,由 globalCharTags.ts 管理,仅用户手动维护,
- *   AI 的 changes 对锁定名一律无效;经 setGlobalCharTagSource 注入,本模块不反向依赖它。
- * - 手动条目/旧版快照:chatMetadata[META_KEY],不随楼层删除。
- * - 自动建档与变化:目标消息 extra[BBI_CHAR_EXTRA_KEY],随消息/swipe 一起保存和删除。
+ * 真源分三層:
+ * - 全域性庫(跨聊天):extensionSettings,由 globalCharTags.ts 管理,僅使用者手動維護,
+ *   AI 的 changes 對鎖定名一律無效;經 setGlobalCharTagSource 注入,本模組不反向依賴它。
+ * - 手動條目/舊版快照:chatMetadata[META_KEY],不隨樓層刪除。
+ * - 自動建檔與變化:目標訊息 extra[BBI_CHAR_EXTRA_KEY],隨訊息/swipe 一起儲存和刪除。
  *
- * charTagLib 只是响应式派生缓存:合并基线(本聊天优先,全局补同名空缺) + 按楼层物理顺序重放自动变化。
+ * charTagLib 只是響應式派生快取:合併基線(本聊天優先,全域性補同名空缺) + 按樓層物理順序重放自動變化。
  */
 
 export type CharTagField = 'fandom' | 'sex' | 'hair' | 'eyes' | 'skin' | 'body' | 'extra' | 'outfit';
@@ -28,13 +28,13 @@ export const CHAR_TAG_FIELDS: readonly CharTagField[] = [
 
 export const CHAR_TAG_FIELD_LABELS: Record<CharTagField, string> = {
   fandom: '同人身份 tag',
-  sex: '性别',
-  hair: '头发',
+  sex: '性別',
+  hair: '頭髮',
   eyes: '眼睛',
-  skin: '肤色',
-  body: '体型',
-  extra: '标志特征',
-  outfit: '固定着装',
+  skin: '膚色',
+  body: '體型',
+  extra: '標誌特徵',
+  outfit: '固定著裝',
 };
 
 export type CharTagSource = 'book' | 'manual' | 'ai';
@@ -45,7 +45,7 @@ export interface CharTagChangeRecord {
   from: string;
   to: string;
   reason: string;
-  /** 自动变化在重放时按当前物理楼号生成;手动编辑/回滚为 -1。 */
+  /** 自動變化在重放時按當前物理樓號生成;手動編輯/回滾為 -1。 */
   floor: number;
   at: number;
 }
@@ -99,13 +99,13 @@ interface CharTagStore {
 }
 
 export const charTagLib = reactive<{ entries: CharTagEntry[] }>({ entries: [] });
-/** 本聊天基线(手动层)里的名字,响应式——UI 用它判断「本聊天覆盖全局」。随 recompute 同步。 */
+/** 本聊天基線(手動層)裡的名字,響應式——UI 用它判斷「本聊天覆蓋全域性」。隨 recompute 同步。 */
 export const charTagBaseNames = reactive<Set<string>>(new Set());
 let baseEntries: CharTagEntry[] = [];
 
 /**
- * 全局角色库(跨聊天)的条目来源,由 globalCharTags.ts 启动时注入。
- * 走注入而不是 import:全局模块要用这里的 normalize/CRUD,直接互转会成模块环。
+ * 全域性角色庫(跨聊天)的條目來源,由 globalCharTags.ts 啟動時注入。
+ * 走注入而不是 import:全域性模組要用這裡的 normalize/CRUD,直接互轉會成模組環。
  */
 let globalCharTagSource: () => CharTagEntry[] = () => [];
 
@@ -114,7 +114,7 @@ export function setGlobalCharTagSource(provider: () => CharTagEntry[]): void {
 }
 
 /**
- * 派生种子 = 本聊天基线 + 全局库补同名空缺(本聊天同名条目优先,即「本聊天覆盖全局」)。
+ * 派生種子 = 本聊天基線 + 全域性庫補同名空缺(本聊天同名條目優先,即「本聊天覆蓋全域性」)。
  */
 export function mergeCharTagSeed(
   chatBaseEntries: CharTagEntry[],
@@ -126,9 +126,9 @@ export function mergeCharTagSeed(
 }
 
 /**
- * 锁定名集:全局库里有、且本聊天基线没有同名条目的角色。
- * AI 的 changes 对锁定名一律无效——全局条目只由用户手动维护,tag 有问题用户自己改。
- * 本聊天手动建同名条目即移出锁定(用户明确要的「本聊天覆盖」,AI 可照常变更它)。
+ * 鎖定名集:全域性庫裡有、且本聊天基線沒有同名條目的角色。
+ * AI 的 changes 對鎖定名一律無效——全域性條目只由使用者手動維護,tag 有問題使用者自己改。
+ * 本聊天手動建同名條目即移出鎖定(使用者明確要的「本聊天覆蓋」,AI 可照常變更它)。
  */
 export function computeLockedCharTagNames(
   chatBaseEntries: CharTagEntry[],
@@ -145,7 +145,7 @@ function mergedSeedEntries(): CharTagEntry[] {
   return mergeCharTagSeed(baseEntries, globalCharTagSource());
 }
 
-/** 当前生效的锁定名集(全局 ⊖ 本聊天基线)。 */
+/** 當前生效的鎖定名集(全域性 ⊖ 本聊天基線)。 */
 export function lockedCharTagNames(): ReadonlySet<string> {
   return computeLockedCharTagNames(baseEntries, globalCharTagSource());
 }
@@ -342,7 +342,7 @@ export function applyCharTagOps(
 ): CharTagEntry[] {
   const out = entries.map(cloneEntry);
   for (const op of ops) {
-    // 锁定角色(全局库)不接受 AI changes:无论 new 还是 set 一律丢弃
+    // 鎖定角色(全域性庫)不接受 AI changes:無論 new 還是 set 一律丟棄
     if (locked?.has(op.name)) continue;
     if (op.kind === 'new') {
       if (out.some(entry => entry.name === op.name)) continue;
@@ -424,7 +424,7 @@ export function recomputeCharTags(): void {
 
 export function hydrateCharTags(): void {
   const raw = getContext()?.chatMetadata?.[META_KEY];
-  // v2 的整库快照无法可靠反推来源楼层,迁移时作为基线保留,避免丢用户现有数据。
+  // v2 的整庫快照無法可靠反推來源樓層,遷移時作為基線保留,避免丟使用者現有資料。
   baseEntries = normalizeCharTagStore(raw);
   recomputeCharTags();
 }
@@ -463,8 +463,8 @@ function stripOpsFromExtra(extra: Record<string, unknown> | undefined, names: Se
 }
 
 /**
- * 手动编辑/删除意味着用户接管当前结果:把该角色过去的自动楼层操作压进手动基线,
- * 并清掉已有消息里的同名操作。之后的新楼层仍可继续由 AI 变更。
+ * 手動編輯/刪除意味著使用者接管當前結果:把該角色過去的自動樓層操作壓進手動基線,
+ * 並清掉已有訊息裡的同名操作。之後的新樓層仍可繼續由 AI 變更。
  */
 function detachFromExistingFloors(...rawNames: Array<string | undefined>): void {
   const names = new Set(rawNames.map(name => name?.trim()).filter((name): name is string => !!name));
@@ -479,7 +479,7 @@ function detachFromExistingFloors(...rawNames: Array<string | undefined>): void 
   }
   if (changed) {
     void context.saveChat?.().catch(error => {
-      console.warn('[柏宝绘] 手动角色变更已生效,但清理旧楼层角色记录保存失败', error);
+      console.warn('[虎哩繪] 手動角色變更已生效,但清理舊樓層角色記錄儲存失敗', error);
     });
   }
 }
@@ -519,17 +519,17 @@ export function upsertCharTag(
           field,
           from: previous.fields[field],
           to: next.fields[field],
-          reason: '手动编辑',
+          reason: '手動編輯',
           floor: -1,
           at,
         });
       }
     }
     if (previous.raw !== next.raw && (previous.raw || next.raw)) {
-      pushHistory(next, { field: 'raw', from: previous.raw, to: next.raw, reason: '手动编辑', floor: -1, at });
+      pushHistory(next, { field: 'raw', from: previous.raw, to: next.raw, reason: '手動編輯', floor: -1, at });
     }
     if (previous.nl !== next.nl && (previous.nl || next.nl)) {
-      pushHistory(next, { field: 'nl', from: previous.nl, to: next.nl, reason: '手动编辑', floor: -1, at });
+      pushHistory(next, { field: 'nl', from: previous.nl, to: next.nl, reason: '手動編輯', floor: -1, at });
     }
   }
 
@@ -571,7 +571,7 @@ export function rollbackCharTag(name: string, record: CharTagChangeRecord): bool
     field: record.field,
     from: record.to,
     to: record.from,
-    reason: '手动回滚',
+    reason: '手動回滾',
     floor: -1,
     at: Date.now(),
   });

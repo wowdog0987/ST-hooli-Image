@@ -1,43 +1,43 @@
 import type { NaiVibe } from '@/state/settings';
 
 /**
- * Vibe 分组的纯逻辑(归拢、搜索、启用集合判定),与 NaiPanel 的渲染分开放。
+ * Vibe 分組的純邏輯(歸攏、搜尋、啟用集合判定),與 NaiPanel 的渲染分開放。
  *
- * 分组是「一起启用/一起折叠」的标签而非独立状态:出图仍只看每条的 enabled
- * (backends/nai.ts 的 filter(v => v.enabled)),组的批量动作本质是对成员
- * enabled 的批量赋值,不引入第二套真相。
+ * 分組是「一起啟用/一起摺疊」的標籤而非獨立狀態:出圖仍只看每條的 enabled
+ * (backends/nai.ts 的 filter(v => v.enabled)),組的批次動作本質是對成員
+ * enabled 的批次賦值,不引入第二套真相。
  *
- * 组名是用户任意输入,不能直接当 key/哨兵用(会和「未分组」「新建分组」撞名),
- * 故一律加 `g:` 前缀装箱:带前缀的必是真实组,裸值 UNGROUPED/NEW_GROUP 必是哨兵。
+ * 組名是使用者任意輸入,不能直接當 key/哨兵用(會和「未分組」「新建分組」撞名),
+ * 故一律加 `g:` 字首裝箱:帶字首的必是真實組,裸值 UNGROUPED/NEW_GROUP 必是哨兵。
  */
 
 export const GROUP_PREFIX = 'g:';
 export const UNGROUPED = 'ungrouped';
 export const NEW_GROUP = 'new';
 
-/** 组名 → 装箱 key(空名即「未分组」哨兵)。 */
+/** 組名 → 裝箱 key(空名即「未分組」哨兵)。 */
 export function groupKey(name: string): string {
   return name.trim() ? `${GROUP_PREFIX}${name.trim()}` : UNGROUPED;
 }
 
 export interface VibeGroup {
-  /** 装箱后的 key,用于 v-for key 与折叠集合。 */
+  /** 裝箱後的 key,用於 v-for key 與摺疊集合。 */
   key: string;
   /** 展示名。 */
   label: string;
-  /** 真实组名(未分组为空串),批量改组时用。 */
+  /** 真實組名(未分組為空串),批次改組時用。 */
   name: string;
-  /** 搜索命中的成员,只用于渲染。 */
+  /** 搜尋命中的成員,只用於渲染。 */
   items: NaiVibe[];
   /**
-   * 组的全部成员(不受搜索影响)。批量动作与计数一律用它:
-   * 「只开这组」若只作用于搜索命中的子集,会把同组被搜索藏起来的条目一并关掉——
-   * 用户看不见的东西被悄悄改掉是最难查的一类 bug,故渲染与语义分开两个列表。
+   * 組的全部成員(不受搜尋影響)。批次動作與計數一律用它:
+   * 「只開這組」若只作用於搜尋命中的子集,會把同組被搜尋藏起來的條目一併關掉——
+   * 使用者看不見的東西被悄悄改掉是最難查的一類 bug,故渲染與語義分開兩個列表。
    */
   all: NaiVibe[];
 }
 
-/** 搜索命中:名字或组名子串匹配(与设置页排除列表同口径,大小写不敏感)。 */
+/** 搜尋命中:名字或組名子串匹配(與設定頁排除列表同口徑,大小寫不敏感)。 */
 export function matchVibe(vibe: Pick<NaiVibe, 'name' | 'group'>, query: string): boolean {
   const q = query.trim().toLowerCase();
   if (!q) return true;
@@ -45,10 +45,10 @@ export function matchVibe(vibe: Pick<NaiVibe, 'name' | 'group'>, query: string):
 }
 
 /**
- * 按组归拢。顺序:有名字的组按库中首次出现的先后排,「未分组」永远垫底
- * ——它不是一个组,只是还没归类的收容区,排前面会显得像默认组。
+ * 按組歸攏。順序:有名字的組按庫中首次出現的先後排,「未分組」永遠墊底
+ * ——它不是一個組,只是還沒歸類的收容區,排前面會顯得像預設組。
  *
- * 搜索没命中任何成员的组不会出现;命中的组则带上全量成员(all)。
+ * 搜尋沒命中任何成員的組不會出現;命中的組則帶上全量成員(all)。
  */
 export function groupVibes(vibes: readonly NaiVibe[], query = ''): VibeGroup[] {
   const map = new Map<string, VibeGroup>();
@@ -58,12 +58,12 @@ export function groupVibes(vibes: readonly NaiVibe[], query = ''): VibeGroup[] {
     const key = groupKey(name);
     let group = map.get(key);
     if (!group) {
-      group = { key, label: name || '未分组', name, items: [], all: [] };
+      group = { key, label: name || '未分組', name, items: [], all: [] };
       map.set(key, group);
     }
     group.items.push(vibe);
   }
-  // 全量成员单独收一遍:只补进已出现的组,搜索没命中的组不凭空出现
+  // 全量成員單獨收一遍:只補進已出現的組,搜尋沒命中的組不憑空出現
   for (const vibe of vibes) {
     map.get(groupKey(vibe.group))?.all.push(vibe);
   }
@@ -72,9 +72,9 @@ export function groupVibes(vibes: readonly NaiVibe[], query = ''): VibeGroup[] {
 }
 
 /**
- * 「生效中」不落盘、是算出来的:当前启用集合恰好等于本组全部成员时才成立。
- * 故用户手动多勾一条之后它会自己消失,不会出现「显示生效中但实际不是」的骗人状态。
- * 空组不算生效(否则库里全空时每个空组都显示生效中)。
+ * 「生效中」不落盤、是算出來的:當前啟用集合恰好等於本組全部成員時才成立。
+ * 故使用者手動多勾一條之後它會自己消失,不會出現「顯示生效中但實際不是」的騙人狀態。
+ * 空組不算生效(否則庫裡全空時每個空組都顯示生效中)。
  */
 export function isGroupActive(group: VibeGroup, vibes: readonly NaiVibe[]): boolean {
   if (!group.all.length) return false;

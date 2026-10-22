@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { isAiStoryMessage, isStoryMessage, type STMessage } from '@/st/context';
 
 function msg(over: Partial<STMessage> = {}): STMessage {
-  return { name: 'Char', is_user: false, is_system: false, mes: '她推开门。', ...over };
+  return { name: 'Char', is_user: false, is_system: false, mes: '她推開門。', ...over };
 }
 
 describe('isStoryMessage', () => {
@@ -14,7 +14,7 @@ describe('isStoryMessage', () => {
 
   it('accepts a floor hidden by /hide — is_system alone is not a system message', () => {
     // ST 的 /hide 只翻 is_system、不碰 extra(chats.js hideChatMessageRange),
-    // 语义是「不进提示词」而非「不是剧情」。楼层按钮与自动 tag 都得照跑。
+    // 語義是「不進提示詞」而非「不是劇情」。樓層按鈕與自動 tag 都得照跑。
     expect(isStoryMessage(msg({ is_system: true }))).toBe(true);
   });
 
@@ -24,7 +24,7 @@ describe('isStoryMessage', () => {
   });
 
   it('ignores extra.type on a floor that is not is_system', () => {
-    // /role assistant 会 delete extra.type,但历史消息里可能有残留;is_system=false 时不算系统楼
+    // /role assistant 會 delete extra.type,但歷史訊息裡可能有殘留;is_system=false 時不算系統樓
     expect(isStoryMessage(msg({ extra: { type: 'narrator' } }))).toBe(true);
   });
 
