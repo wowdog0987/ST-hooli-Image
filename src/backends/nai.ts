@@ -337,12 +337,21 @@ export function fullPositivePrompt(nai: NaiSettings, prompt: string, nl = ''): s
   return [artist, prompt.trim(), scene, quality].filter(Boolean).join(', ');
 }
 
+/**
+ * 數字權重的正確寫法是 1.4::tag::(兩側各兩個冒號)。角色庫裡常見手誤寫成 1.4:tag,
+ * NAI 會把「1.4:」當普通文字讀進去、權重也不生效,送出前就地修正。
+ */
+export function fixWeightSyntax(part: string): string {
+  const match = part.match(/^(-?\d+(?:\.\d+)?):(?!:)\s*(.+)$/);
+  return match ? `${match[1]}::${match[2].trim()}::` : part;
+}
+
 function characterCaption(character: ImageCharacterPrompt): string {
   // Character Prompts identify one subject: library count tags (1girl/1boy) become girl/boy here.
   const tag = character.tag
     .split(',')
     .map(part => {
-      const value = part.trim();
+      const value = fixWeightSyntax(part.trim());
       if (/^\d+\s*girls?$/i.test(value)) return 'girl';
       if (/^\d+\s*boys?$/i.test(value)) return 'boy';
       return value;

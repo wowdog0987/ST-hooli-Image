@@ -155,7 +155,7 @@ ${minImages > 0 ? `If no moment fully qualifies, still pick the most visual mome
 Pick the most visual moment first, then the next most visual one. position: the ⟦Pn⟧ marker of the highlight's line; use only markers that appear in the target text.
 
 4. Data sources:
-- 【世界背景】: the era and region. Put 1–3 English era tags in Base (e.g. 18th century, rococo, historical), and write every garment, building and prop as that era's version: Horae / story text says WHAT is worn, 【世界背景】 says in WHICH era's style (e.g. 18th-century Rococo 禮服 → justaucorps, embroidered waistcoat, jabot, breeches; ball gown with panniers).
+- 【世界背景】: the era and region. Put 1–3 English era tags in Base (e.g. 18th century, rococo, historical), and write every garment, building and prop as that era's version: Horae / story text says WHAT is worn, 【世界背景】 says in WHICH era's style (e.g. 18th-century Rococo 禮服 → tailcoat, waistcoat, ascot, breeches for a man; frilled dress, corset, long dress for a woman).
 - 【當前場景】: location, atmosphere, fixed scene features, time of day → background and lighting.
 - 【角色參考】(Horae): each character's clothing for this turn (著裝) and temporary state — use it as written.
 - 【角色固定外貌庫】: the authoritative fixed appearance.
@@ -177,11 +177,14 @@ ${naiCharPromptsOn ? 'Each character tag' : 'For each visible character, the tag
 
 9. Composition: write exactly one shot distance (never two) that frames the whole ongoing state and the highlight, plus an angle when it helps (from side, from above), following the shot and orientation rules of the backend specification.
 
-10. Tag vocabulary: every tag is a short canonical danbooru tag (1–3 lowercase words) that exists on danbooru. Split a description into several canonical tags: "messy white chiffon shirt" → white shirt, disheveled clothes; "pants pulled down to thighs" → pants pull; "lying on table" → lying on back, on table. Base order: nsfw and the act (explicit scenes only) → shot → angle → era → scene → lighting${naiCharPromptsOn ? '' : ', then each character as in rule 5'}.
+10. Tag vocabulary: every tag is a short canonical danbooru tag (1–3 lowercase words) that exists on danbooru. Split a description into several canonical tags: "messy white chiffon shirt" → white shirt, disheveled clothes; "pants pulled down to thighs" → pants pull; "lying on table" → lying on back, on table.
+Some English garment words mean something else as danbooru tags — habit is a nun's habit, so a riding habit becomes jacket, long skirt, ascot, riding boots. When a garment has no common danbooru tag, build it from basic garment tags (jacket, coat, long skirt, frilled dress, ascot, corset, boots).${naiNlOn ? '' : ' This model reads tags only, so every garment, pose and prop must be a tag it knows.'}
+Emphasis, when needed: 1.3::tag:: (two colons on each side); copy library weights as written.
+Base order: ${naiNlOn ? 'nsfw and the act (explicit scenes only) → the shared interaction and pose → era → scene → shot → angle → lighting; the most important content goes in the front half' : 'nsfw and the act (explicit scenes only) → shot → angle → era → scene → lighting'}${naiCharPromptsOn ? '' : ', then each character as in rule 5'}.
 
 11. Space budget: rules 5–9 stay complete. When a tag gets long, shorten atmosphere adjectives only.
 ${nlOn ? `
-12. NL: ${naiNlOn ? 'Base nl only — one or two English sentences on the spatial arrangement, the interaction and the camera (who is where, who touches what); appearance and clothing stay in the tags.' : 'natural English, one clause per spatial relation (who is where, who touches what); refer to each character by a short distinguishing trait (e.g. the black-haired girl).'}
+12. NL: ${naiNlOn ? 'Base nl only — one or two English sentences on the spatial arrangement, the interaction and the camera (who is where, who touches what), and the era-specific clothing named in plain words (e.g. an 18th-century riding outfit); appearance stays in the tags.' : 'natural English, one clause per spatial relation (who is where, who touches what); refer to each character by a short distinguishing trait (e.g. the black-haired girl).'}
 ` : ''}
 size: "portrait" or "landscape", chosen by the orientation rules of the backend specification.
 ${negativeOn ? 'negative: tags that remove conflicts with the tag' + (nlOn ? ' and nl' : '') + '.\n' : ''}

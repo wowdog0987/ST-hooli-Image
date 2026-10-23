@@ -52,3 +52,14 @@ describe('NAI 送出的正向提示詞', () => {
     );
   });
 });
+
+describe('fixWeightSyntax', () => {
+  it('單冒號權重修正成 1.4::tag::,正確寫法與一般 tag 不動', async () => {
+    const { fixWeightSyntax } = await import('@/backends/nai');
+    expect(fixWeightSyntax('1.4:wispy see-through bangs')).toBe('1.4::wispy see-through bangs::');
+    expect(fixWeightSyntax('1.4::short hair::')).toBe('1.4::short hair::');
+    expect(fixWeightSyntax('-1:hat')).toBe('-1::hat::');
+    expect(fixWeightSyntax('long hair')).toBe('long hair');
+    expect(fixWeightSyntax('source#kiss')).toBe('source#kiss');
+  });
+});
