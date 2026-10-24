@@ -4,9 +4,9 @@
   "loading_order": 100,
   "requires": [],
   "optional": [],
-  "js": "dist/index.js?ver=1.0.0",
+  "js": "dist/index.js?ver=1.1.0",
   "author": "user",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "homePage": "https://github.com/wowdog0987/ST-hooli-Image",
   "auto_update": true,
   "minimum_client_version": "1.12.13"
