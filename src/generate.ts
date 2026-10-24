@@ -23,10 +23,10 @@
  */
 
 import type { ImageCharacterPrompt } from '@/autoTag/protocol';
-import { validateSimpleConfig } from '@/backends/comfyTemplates';
+import { presetFamily, validateSimpleConfig } from '@/backends/comfyTemplates';
 import { generateComfyImage, randomSeed, type ComfyImageResult } from '@/backends/comfyui';
 import { generateNaiImage, naiRandomSeed, naiSupportsCharacterPrompts } from '@/backends/nai';
-import { toSdPrompt } from '@/backends/sdPrompt';
+import { toPlainPrompt, toSdPrompt } from '@/backends/sdPrompt';
 import type { Orientation } from '@/backends/size';
 import { acquireNaiSlot } from '@/floor/genQueue';
 import { activeComfyPreset, activeNaiEndpoint, effectiveComfyConn, effectiveNai, settings, type BackendId } from '@/state/settings';
@@ -182,6 +182,8 @@ export async function generateImage(
     progress.onStart?.();
 
     const size = input.size ?? 'portrait';
+    // 角色庫與規則用 NovelAI 寫法(1.4::tag::):CLIP 系換成 (tag:1.4),其他編碼器權重無效,直接拿掉
+    const toComfy = !isNai && presetFamily(activeComfyPreset()) !== 'checkpoint' ? toPlainPrompt : toSdPrompt;
     const result = isNai
       ? await generateNaiImage(
           effectiveNai(),
@@ -194,10 +196,9 @@ export async function generateImage(
       : await generateComfyImage(
           effectiveComfyConn(),
           {
-            // 角色庫與規則用 NovelAI 寫法(1.4::tag::),SD 系模型要 (tag:1.4)
-            prompt: toSdPrompt(input.prompt),
+            prompt: toComfy(input.prompt),
             nl: input.nl ?? '',
-            negative_prompt: toSdPrompt(input.negative ?? ''),
+            negative_prompt: toComfy(input.negative ?? ''),
             seed: input.seed,
             size,
           },

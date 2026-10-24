@@ -1,5 +1,5 @@
 import type { ChatMsg } from '@/api/client';
-import { templateSupportsNegative } from '@/backends/comfyTemplates';
+import { presetFamily, templateSupportsNegative } from '@/backends/comfyTemplates';
 import { getWorkflowPlaceholders } from '@/backends/comfyui';
 import { isNai5, naiSupportsCharacterPrompts } from '@/backends/nai';
 import {
@@ -104,16 +104,21 @@ export async function buildAutoTagMessages(
   const naiCharPromptsOn =
     settings.defaultBackend === 'nai' && naiSupportsCharacterPrompts(settings.nai.model);
   const comfyPreset = comfyOn ? activeComfyPreset() : null;
+  // CLIP 系(Checkpoint)每 75 token 切一段、越前面越強,要排順序、控長度
+  const clipOn = !!comfyPreset && presetFamily(comfyPreset) === 'checkpoint';
   // 自然語言只在會被送出的地方要:ComfyUI 開了「生成自然語言」,或 NAI V5 的 Base。
   // NAI 4.5 送的是純 tag(V4.5 對自然語言只算部分支援),寫了也是白燒 token。
   const naiNlOn = naiCharPromptsOn && isNai5(settings.nai.model);
-  const nlOn = !!comfyPreset?.naturalLanguage || naiNlOn;
+  // 簡易模式的 Checkpoint 不送句子(見 composePositive),開著也不寫
+  const comfyNlOn =
+    !!comfyPreset?.naturalLanguage && !(comfyPreset.mode === 'simple' && clipOn);
+  const nlOn = comfyNlOn || naiNlOn;
   
   let negativeOn = false;
   if (comfyPreset) {
     if (comfyPreset.mode === 'simple') {
       negativeOn = templateSupportsNegative(comfyPreset.simple.template);
-    } else if (comfyPreset.workflow.trim()) {
+    } else if (presetFamily(comfyPreset) !== 'flux' && comfyPreset.workflow.trim()) {
       try {
         negativeOn = getWorkflowPlaceholders(comfyPreset.workflow).includes('negative_prompt');
       } catch {
@@ -164,7 +169,7 @@ Pick the most visual moment first, then the next most visual one. position: the 
 
 5. Characters: list the characters visible in the frame, each name exactly as written in the library / story.
 ${naiCharPromptsOn ? 'Each character tag' : 'For each visible character, the tag'}, in this order: library fields copied verbatim → clothing (rule 6) → expression → body structure (rule 7).${naiCharPromptsOn ? '\nThe plugin adds the character count tags (1girl, 1boy…) to Base from the characters list.' : `
-This backend takes ONE tag string for everyone. Start it with the count tags (1girl / 1boy / 2girls / 1girl, 1boy …), then write each visible character's tags as one group in the order above. With two or more characters, bind every trait that could belong to anyone to that character's anchor (hair color + girl/boy): red dress on silver hair girl, silver hair girl smiling, black hair boy looking at another. Hair and eye colors stay plain as the anchors; what the characters share (the room, the light) is written once.`}
+This backend takes ONE tag string for everyone. Start it with the count tags (1girl / 1boy / 2girls / 1girl, 1boy …; add hetero when a girl and a boy are together), then write each visible character's tags as one group in the order above, right after the count tags and before the scene. With two or more characters, bind every trait that could belong to anyone to that character's anchor (hair color + girl/boy): red dress on silver hair girl, silver hair girl smiling, black hair boy looking at another. Hair and eye colors stay plain as the anchors; what the characters share (the room, the light) is written once.`}
 
 6. Clothing: write exactly the garments listed in that character's 著裝 (【角色參考】), each one as tags together with its state (凌亂 → disheveled clothes; 敞開 → open shirt; 退至大腿 → pants pull). Add no garment that is not listed. When no top is listed, the character is topless: write shirtless for a man, topless for a woman. Garments fully outside the shot may be left out.
 
@@ -181,7 +186,7 @@ This backend takes ONE tag string for everyone. Start it with the count tags (1g
 10. Tag vocabulary: every tag is a short canonical danbooru tag (1–3 lowercase words) that exists on danbooru. Split a description into several canonical tags: "messy white chiffon shirt" → white shirt, disheveled clothes; "pants pulled down to thighs" → pants pull; "lying on table" → lying on back, on table.
 Some English garment words mean something else as danbooru tags — habit is a nun's habit, so a riding habit becomes jacket, long skirt, ascot, riding boots. When a garment has no common danbooru tag, build it from basic garment tags (jacket, coat, long skirt, frilled dress, ascot, corset, boots).${nlOn ? '' : ' This model reads tags only, so every garment, pose and prop must be a tag it knows.'}
 Emphasis, when needed: ${comfyOn ? '(tag:1.3); library weights written as 1.3::tag:: are converted by the plugin, copy them as written' : '1.3::tag:: (two colons on each side); copy library weights as written'}.
-Base order: ${naiNlOn ? 'nsfw and the act (explicit scenes only) → the shared interaction and pose → era → scene → shot → angle → lighting; the most important content goes in the front half' : `${comfyOn ? 'count tags → ' : ''}nsfw and the act (explicit scenes only) → shot → angle → era → scene → lighting`}${naiCharPromptsOn ? '' : ', then each character as in rule 5'}.
+Base order: ${naiNlOn ? 'nsfw and the act (explicit scenes only) → the shared interaction and pose → era → scene → shot → angle → lighting; the most important content goes in the front half' : comfyOn ? 'count tags → each character as in rule 5 → nsfw and the act (explicit scenes only) → shared interaction → shot → angle → era → scene → lighting' : 'nsfw and the act (explicit scenes only) → shot → angle → era → scene → lighting, then each character as in rule 5'}.${clipOn ? ' This model reads the tag string in 75-token chunks and the first chunk counts most: keep the count tags and the characters at the front, keep each character\'s tags together, and keep the whole tag around 40 tags.' : ''}
 
 11. Space budget: rules 5–9 stay complete. When a tag gets long, shorten atmosphere adjectives only.
 ${nlOn ? `

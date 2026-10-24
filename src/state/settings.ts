@@ -1,8 +1,10 @@
 ﻿import {
+  isComfyTemplateId,
   normalizeSimpleConfig,
   simpleDefaults,
   type ComfyPresetMode,
   type ComfySimpleConfig,
+  type ComfySimpleTemplateId,
 } from '@/backends/comfyTemplates';
 import { BUILTIN_NAI_ARTISTS, isBuiltinNaiArtist, naiDefaultUndesired } from '@/backends/nai';
 import { parseSize, type SizePair } from '@/backends/size';
@@ -71,7 +73,9 @@ export interface ComfyWorkflowPreset extends SizePair {
   workflow: string;
   /** simple 模式的引數;custom 模式下保留但不生效(切回不丟)。 */
   simple: ComfySimpleConfig;
-  /** 生成自然語言:開=自動 tag 以連貫短句寫正向提示詞(Flux/SD3.5 等);關=逗號分隔 tag。 */
+  /** 自訂工作流背後的模型類型(簡易模式看模板);決定 tag 順序、權重寫法與要不要自然語言。 */
+  family: ComfySimpleTemplateId;
+  /** 生成自然語言:選模板/模型類型時自動設定(Flux、Anima 開,Checkpoint 關),可手動改。 */
   naturalLanguage: boolean;
 }
 
@@ -670,6 +674,7 @@ export function newComfyWorkflow(name = DEFAULT_WORKFLOW_NAME): ComfyWorkflowPre
     mode: 'simple',
     workflow: '',
     simple: simpleDefaults(),
+    family: 'checkpoint',
     naturalLanguage: false,
     portraitSize: DEFAULT_PORTRAIT_SIZE,
     landscapeSize: DEFAULT_LANDSCAPE_SIZE,
@@ -959,6 +964,7 @@ function normalizeWorkflowPreset(raw: unknown, seq: number): ComfyWorkflowPreset
     mode: o.mode === 'simple' ? 'simple' : 'custom',
     workflow: typeof o.workflow === 'string' ? o.workflow : '',
     simple: normalizeSimpleConfig(o.simple),
+    family: isComfyTemplateId(o.family) ? o.family : 'checkpoint',
     naturalLanguage: typeof o.naturalLanguage === 'boolean' ? o.naturalLanguage : false,
     portraitSize: size(o.portraitSize, DEFAULT_PORTRAIT_SIZE),
     landscapeSize: size(o.landscapeSize, DEFAULT_LANDSCAPE_SIZE),

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { toSdPrompt, toSdTag } from '@/backends/sdPrompt';
+import { toPlainPrompt, toSdPrompt, toSdTag } from '@/backends/sdPrompt';
 
 describe('NovelAI 寫法 → SD 寫法', () => {
   it('數字權重(含單冒號手誤)轉成 (tag:w)', () => {
@@ -29,5 +29,17 @@ describe('NovelAI 寫法 → SD 寫法', () => {
     expect(toSdPrompt('1girl, 1.4::short hair::, -1::hat::, red dress on silver hair girl')).toBe(
       '1girl, (short hair:1.4), red dress on silver hair girl',
     );
+  });
+});
+
+describe('非 CLIP 模型拿掉權重', () => {
+  it('各種權重寫法都還原成純 tag,負權重略過', () => {
+    expect(toPlainPrompt('1girl, 1.4::short hair::, (blush:1.2), {smile}, [hat], -1::cap::, 1.3:red eyes')).toBe(
+      '1girl, short hair, blush, smile, hat, red eyes',
+    );
+  });
+
+  it('跳脫的圓括號還原', () => {
+    expect(toPlainPrompt('hatsune miku \\(vocaloid\\)')).toBe('hatsune miku (vocaloid)');
   });
 });

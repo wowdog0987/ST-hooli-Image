@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   buildSimpleWorkflow,
+  composePositive,
   normalizeSimpleConfig,
   simpleDefaults,
   templateSupportsNegative,
@@ -69,9 +70,16 @@ describe('buildSimpleWorkflow - checkpoint', () => {
     expect(node(wf, '8').class_type).toBe('SaveImage');
   });
 
-  it('nl 存在時優先於 tag 作為正向生成內容', () => {
+  it('Checkpoint 只吃 tag:有 nl 也不送,免得擠掉 tag', () => {
     const wf = buildSimpleWorkflow(simple, { ...VALUES, nl: 'A girl with silver hair.' });
-    expect(node(wf, '3').inputs.text).toBe('masterpiece, best quality, A girl with silver hair.');
+    expect(node(wf, '3').inputs.text).toBe('masterpiece, best quality, 1girl, silver hair');
+  });
+
+  it('Flux 句子在前、tag 在後;Anima tag 在前、句子在後', () => {
+    const values = { ...VALUES, nl: 'A girl with silver hair.' };
+    const base = { ...simple, positive: '' };
+    expect(composePositive({ ...base, template: 'flux' }, values)).toBe('A girl with silver hair., 1girl, silver hair');
+    expect(composePositive({ ...base, template: 'anima' }, values)).toBe('1girl, silver hair, A girl with silver hair.');
   });
 
   it('固定詞留空時只剩生成內容(不多逗號)', () => {

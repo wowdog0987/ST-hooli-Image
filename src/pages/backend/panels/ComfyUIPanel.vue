@@ -2,6 +2,7 @@
 import {
   COMFY_TEMPLATE_OPTIONS,
   COMFY_TEMPLATES,
+  familyWantsNl,
   isComfyTemplateId,
   simpleDefaults,
   validateSimpleConfig,
@@ -231,6 +232,14 @@ function onTemplateChange(id: string) {
     positive: current.positive,
     negative: current.negative,
   };
+  active.value.naturalLanguage = familyWantsNl(id);
+}
+
+/** 自訂工作流的模型類型:跟簡易模式的模板同一套,一樣帶動自然語言開關。 */
+function onFamilyChange(id: string) {
+  if (!isComfyTemplateId(id) || active.value.family === id) return;
+  active.value.family = id;
+  active.value.naturalLanguage = familyWantsNl(id);
 }
 
 function addLora() {
@@ -251,8 +260,8 @@ const simpleState = computed(() => {
 
 const nlHint = computed(() =>
   active.value.mode === 'simple'
-    ? '額外生成一段自然語言描述;簡易模式下優先於 tag 作為正向提示詞(Flux/Anima 建議開啟)'
-    : '額外生成一段自然語言描述,隨 %nl% 注入工作流',
+    ? '選模板時會自動設定:Checkpoint 只送 tag;Flux 以句子為主、附上 tag;Anima tag 與句子一起送'
+    : '選模型類型時會自動設定;句子隨 %nl% 注入工作流,%prompt% 仍是 tag',
 );
 
 /** 藥丸只顯示一個詞,具體原因放 title 懸浮提示,不佔版面。 */
@@ -365,7 +374,7 @@ function applyAssist() {
         <ol class="quickstart">
           <li>先啟動 ComfyUI，確認瀏覽器打得開 <code>http://127.0.0.1:8188</code>。</li>
           <li>展開下方「配置」，URL 填 ComfyUI 的網址（本機就是上面那個），按「測試連線」，再按「使用此渠道出圖」。</li>
-          <li>「配置方式」選「簡易引數」→ 選模板（一般二次元模型選 Checkpoint；用 Flux、Anima 就選對應的）→ 按「拉取模型列表」→ 選模型。用 Flux、Anima 這類吃自然語言的模型，記得打開「生成自然語言」。</li>
+          <li>「配置方式」選「簡易引數」→ 選模板（一般二次元模型選 Checkpoint；用 Flux、Anima 就選對應的）→ 按「拉取模型列表」→ 選模型。提示詞的寫法會跟著模板自動調整。</li>
           <li>想用自己的工作流：在 ComfyUI 選單按 Workflow › Export (API) 匯出，貼到「自定義工作流」，外掛的助手會幫你找出要填提示詞的節點。</li>
           <li>回到聊天，AI 回覆後會自動配圖；也可以按樓層選單「⋯」裡的調色盤按鈕手動加一張。</li>
         </ol>
@@ -702,6 +711,16 @@ function applyAssist() {
 
         <!-- 自定義模式:貼上 API 格式 JSON -->
         <template v-else>
+        <div class="wf-field">
+          <span class="wf-field-tag">模型類型</span>
+          <BbiSelect
+            class="wf-tpl"
+            :model-value="active.family"
+            :options="templateOptions"
+            aria-label="工作流的模型類型"
+            @update:model-value="onFamilyChange"
+          />
+        </div>
         <div class="wf-json-head">
           <span class="bbi-field-label">工作流 JSON</span>
           <span class="wf-json-tools">

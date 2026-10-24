@@ -156,6 +156,27 @@ export function templateSupportsNegative(id: ComfySimpleTemplateId): boolean {
   return COMFY_TEMPLATES[id].supportsNegative;
 }
 
+/**
+ * 這套預設背後是哪一類模型:簡易模式看模板,自訂工作流看使用者選的「模型類型」。
+ * 提示詞怎麼寫跟著文字編碼器走,不跟著單一模型檔走:
+ * - checkpoint(CLIP):只吃 tag,每 75 token 切一段,越前面越強;
+ * - flux(T5):自然語言為主,權重語法幾乎無效,沒有負面;
+ * - anima(LLM 類編碼器):tag 與自然語言都讀。
+ */
+export function presetFamily(preset: {
+  mode: ComfyPresetMode;
+  simple: { template: ComfySimpleTemplateId };
+  family?: ComfySimpleTemplateId;
+}): ComfySimpleTemplateId {
+  if (preset.mode === 'simple') return preset.simple.template;
+  return preset.family && isComfyTemplateId(preset.family) ? preset.family : 'checkpoint';
+}
+
+/** 這一類模型預設要不要生成自然語言。 */
+export function familyWantsNl(family: ComfySimpleTemplateId): boolean {
+  return family !== 'checkpoint';
+}
+
 /** 新預設的簡易模式預設值:取樣引數取模板推薦,其餘留空待選。 */
 export function simpleDefaults(template: ComfySimpleTemplateId = 'checkpoint'): ComfySimpleConfig {
   const meta = COMFY_TEMPLATES[template];
@@ -249,11 +270,16 @@ function joinParts(...parts: (string | undefined)[]): string {
 }
 
 /**
- * 正向 = 固定正面 + 生成內容;生成內容有 nl 優先用 nl(Flux/Anima 吃自然語言),
- * 沒有才退回短 tag。開關在預設上,使用者自己決定模板與開關的搭配。
+ * 正向 = 固定正面 + 生成內容,依模板決定 tag 與 nl 怎麼搭:
+ * - Checkpoint(CLIP)只吃 tag,nl 不送,免得把 tag 擠到後段;
+ * - Flux(T5)句子為主,tag 附在後面補細節;
+ * - Anima tag 在前、句子在後,兩者都讀。
  */
-function composePositive(simple: ComfySimpleConfig, values: SimpleGenValues): string {
-  return joinParts(simple.positive, (values.nl ?? '').trim() || values.prompt);
+export function composePositive(simple: ComfySimpleConfig, values: SimpleGenValues): string {
+  const nl = (values.nl ?? '').trim();
+  if (simple.template === 'checkpoint' || !nl) return joinParts(simple.positive, values.prompt);
+  if (simple.template === 'flux') return joinParts(simple.positive, nl, values.prompt);
+  return joinParts(simple.positive, values.prompt, nl);
 }
 
 /** 負面 = 固定負面 + AI 動態負面追加。 */
