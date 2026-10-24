@@ -474,6 +474,30 @@ export function extractContent(data: any): string {
 const MAIN_API_RESPONSE_LENGTH = 65535;
 
 /**
+ * 主 API 被拒(400 Bad Request)時的降級階梯。各家模型的輸出上限與是否接受 assistant 預填充
+ * 差很多:Gemini Flash 收得下 65535,GPT-4o 只到 16384,部分 Claude / OpenAI 模型不收預填充。
+ * 依序嘗試;成功的那一階記住,本次工作階段後續請求直接從那一階開始,不必每次先失敗一輪。
+ * 最後一階 responseLength 為 null:交給使用者在 ST 主介面設定、確定能用的回覆長度。
+ */
+const MAIN_API_ATTEMPTS: ReadonlyArray<{ prefill: boolean; responseLength: number | null }> = [
+  { prefill: true, responseLength: MAIN_API_RESPONSE_LENGTH },
+  { prefill: false, responseLength: 16384 },
+  { prefill: false, responseLength: null },
+];
+let mainApiAttempt = 0;
+
+/** 是否為「請求被模型服務拒收」這類可降級重試的錯誤(網路、中止、空回覆不算)。 */
+function isRejectedRequest(error: unknown): boolean {
+  if (error instanceof DOMException && error.name === 'AbortError') return false;
+  const message = error instanceof Error ? error.message : String(error ?? '');
+  return /bad request|\b400\b|max_?tokens|max_output|maximum.*tokens|prefill|assistant message|invalid argument/i.test(message);
+}
+
+function withoutPrefill(messages: ChatMsg[]): ChatMsg[] {
+  return messages[messages.length - 1]?.role === 'assistant' ? messages.slice(0, -1) : messages;
+}
+
+/**
  * 是否具备「跟随主 API」的条件:ST 暴露了 generateRaw(稳定 API)即可。
  * 不再依赖连接管理/连接档——直接借用主界面当前正在用的 API。
  */
@@ -522,9 +546,22 @@ export async function requestViaMainApi(messages: ChatMsg[], opts: RequestOption
   );
 
   try {
-    const content = (
-      await ctx.generateRaw({ prompt: withHoraeOptOut(messages), responseLength: MAIN_API_RESPONSE_LENGTH })
-    )?.trim();
+    let content = '';
+    for (let step = mainApiAttempt; step < MAIN_API_ATTEMPTS.length; step += 1) {
+      const attempt = MAIN_API_ATTEMPTS[step];
+      try {
+        const prompt = withHoraeOptOut(attempt.prefill ? messages : withoutPrefill(messages));
+        content = ((await ctx.generateRaw({ prompt, responseLength: attempt.responseLength })) ?? '').trim();
+        if (step !== mainApiAttempt) {
+          console.info(`[虎哩繪] 主 API 改用相容模式成功(預填充:${attempt.prefill ? '開' : '關'},輸出上限:${attempt.responseLength ?? 'ST 設定'})`);
+        }
+        mainApiAttempt = step;
+        break;
+      } catch (error) {
+        if (!isRejectedRequest(error) || step === MAIN_API_ATTEMPTS.length - 1) throw error;
+        console.warn('[虎哩繪] 主 API 拒收請求,改用相容模式重試', error);
+      }
+    }
     if (!content) throw new ApiError('主 API 返回空内容');
     // 与副 API 同口径:验收不过记失败,不记「成功」
     opts.validate?.(content);
