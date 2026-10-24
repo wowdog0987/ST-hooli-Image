@@ -163,7 +163,8 @@ Pick the most visual moment first, then the next most visual one. position: the 
 - Context floors (--- 上下文 ---): the ongoing state and scene leading into the target text.
 
 5. Characters: list the characters visible in the frame, each name exactly as written in the library / story.
-${naiCharPromptsOn ? 'Each character tag' : 'For each visible character, the tag'}, in this order: library fields copied verbatim → clothing (rule 6) → expression → body structure (rule 7).${naiCharPromptsOn ? '\nThe plugin adds the character count tags (1girl, 1boy…) to Base from the characters list.' : ''}
+${naiCharPromptsOn ? 'Each character tag' : 'For each visible character, the tag'}, in this order: library fields copied verbatim → clothing (rule 6) → expression → body structure (rule 7).${naiCharPromptsOn ? '\nThe plugin adds the character count tags (1girl, 1boy…) to Base from the characters list.' : `
+This backend takes ONE tag string for everyone. Start it with the count tags (1girl / 1boy / 2girls / 1girl, 1boy …), then write each visible character's tags as one group in the order above. With two or more characters, bind every trait that could belong to anyone to that character's anchor (hair color + girl/boy): red dress on silver hair girl, silver hair girl smiling, black hair boy looking at another. Hair and eye colors stay plain as the anchors; what the characters share (the room, the light) is written once.`}
 
 6. Clothing: write exactly the garments listed in that character's 著裝 (【角色參考】), each one as tags together with its state (凌亂 → disheveled clothes; 敞開 → open shirt; 退至大腿 → pants pull). Add no garment that is not listed. When no top is listed, the character is topless: write shirtless for a man, topless for a woman. Garments fully outside the shot may be left out.
 
@@ -178,9 +179,9 @@ ${naiCharPromptsOn ? 'Each character tag' : 'For each visible character, the tag
 9. Composition: write exactly one shot distance (never two) that frames the whole ongoing state and the highlight, plus an angle when it helps (from side, from above), following the shot and orientation rules of the backend specification.
 
 10. Tag vocabulary: every tag is a short canonical danbooru tag (1–3 lowercase words) that exists on danbooru. Split a description into several canonical tags: "messy white chiffon shirt" → white shirt, disheveled clothes; "pants pulled down to thighs" → pants pull; "lying on table" → lying on back, on table.
-Some English garment words mean something else as danbooru tags — habit is a nun's habit, so a riding habit becomes jacket, long skirt, ascot, riding boots. When a garment has no common danbooru tag, build it from basic garment tags (jacket, coat, long skirt, frilled dress, ascot, corset, boots).${naiNlOn ? '' : ' This model reads tags only, so every garment, pose and prop must be a tag it knows.'}
-Emphasis, when needed: 1.3::tag:: (two colons on each side); copy library weights as written.
-Base order: ${naiNlOn ? 'nsfw and the act (explicit scenes only) → the shared interaction and pose → era → scene → shot → angle → lighting; the most important content goes in the front half' : 'nsfw and the act (explicit scenes only) → shot → angle → era → scene → lighting'}${naiCharPromptsOn ? '' : ', then each character as in rule 5'}.
+Some English garment words mean something else as danbooru tags — habit is a nun's habit, so a riding habit becomes jacket, long skirt, ascot, riding boots. When a garment has no common danbooru tag, build it from basic garment tags (jacket, coat, long skirt, frilled dress, ascot, corset, boots).${nlOn ? '' : ' This model reads tags only, so every garment, pose and prop must be a tag it knows.'}
+Emphasis, when needed: ${comfyOn ? '(tag:1.3); library weights written as 1.3::tag:: are converted by the plugin, copy them as written' : '1.3::tag:: (two colons on each side); copy library weights as written'}.
+Base order: ${naiNlOn ? 'nsfw and the act (explicit scenes only) → the shared interaction and pose → era → scene → shot → angle → lighting; the most important content goes in the front half' : `${comfyOn ? 'count tags → ' : ''}nsfw and the act (explicit scenes only) → shot → angle → era → scene → lighting`}${naiCharPromptsOn ? '' : ', then each character as in rule 5'}.
 
 11. Space budget: rules 5–9 stay complete. When a tag gets long, shorten atmosphere adjectives only.
 ${nlOn ? `

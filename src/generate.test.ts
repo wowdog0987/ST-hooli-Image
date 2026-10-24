@@ -127,7 +127,7 @@ describe('backendStatus', () => {
     settings.comfyui.workflows[0].workflow = '  ';
     expect(backendStatus()).toMatchObject({
       configured: false,
-      reason: '當前工作流預設未填寫工作流 JSON',
+      reason: '目前的工作流是空的',
     });
   });
 });

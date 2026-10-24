@@ -229,9 +229,11 @@ const barText = computed(() => {
 const pendingHint = computed(() => {
   if (!comfyActive.value && !naiActive.value)
     return '出圖後端未選擇,請到虎哩繪「渠道」頁選擇出圖渠道';
+  // 帶上具體缺什麼(沒填網址、沒選模型、工作流是空的……),新手照著補就好
+  const reason = backendStatus().reason;
   return naiActive.value
-    ? '未配置 NAI,請到虎哩繪「渠道」頁填寫 API Key'
-    : '未配置 ComfyUI,請到虎哩繪「渠道」頁填寫工作流';
+    ? `NovelAI 還沒設定好${reason ? `:${reason}` : ''}。請到虎哩繪「渠道」頁設定`
+    : `ComfyUI 還沒設定好${reason ? `:${reason}` : ''}。請到虎哩繪「渠道」頁的 ComfyUI 區塊,用「簡易引數」選模型,或貼上 API 格式的工作流`;
 });
 
 async function generate(): Promise<void> {

@@ -26,6 +26,7 @@ import type { ImageCharacterPrompt } from '@/autoTag/protocol';
 import { validateSimpleConfig } from '@/backends/comfyTemplates';
 import { generateComfyImage, randomSeed, type ComfyImageResult } from '@/backends/comfyui';
 import { generateNaiImage, naiRandomSeed, naiSupportsCharacterPrompts } from '@/backends/nai';
+import { toSdPrompt } from '@/backends/sdPrompt';
 import type { Orientation } from '@/backends/size';
 import { acquireNaiSlot } from '@/floor/genQueue';
 import { activeComfyPreset, activeNaiEndpoint, effectiveComfyConn, effectiveNai, settings, type BackendId } from '@/state/settings';
@@ -122,7 +123,7 @@ export function backendStatus(): BackendStatus {
       return { ...base, configured: true, reason: '' };
     }
     if (!preset.workflow.trim()) {
-      return { ...base, configured: false, reason: '當前工作流預設未填寫工作流 JSON' };
+      return { ...base, configured: false, reason: '目前的工作流是空的' };
     }
     return { ...base, configured: true, reason: '' };
   }
@@ -193,9 +194,10 @@ export async function generateImage(
       : await generateComfyImage(
           effectiveComfyConn(),
           {
-            prompt: input.prompt,
+            // 角色庫與規則用 NovelAI 寫法(1.4::tag::),SD 系模型要 (tag:1.4)
+            prompt: toSdPrompt(input.prompt),
             nl: input.nl ?? '',
-            negative_prompt: input.negative ?? '',
+            negative_prompt: toSdPrompt(input.negative ?? ''),
             seed: input.seed,
             size,
           },

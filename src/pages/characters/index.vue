@@ -366,6 +366,10 @@ function sourceLabel(entry: CharTagEntry): string {
     <p class="bbi-field-hint">
       角色固定外貌庫:生成 tag 時 AI 照抄庫中欄位,外貌穩定不漂移。角色名要和正文、Horae 記錄的名字一模一樣,前面不要加 @。
     </p>
+    <p class="bbi-field-hint">
+      <strong>建議開始生圖前先整理這裡:</strong>主要角色最好手動建立,或用「從Horae生成」後檢查一遍。AI 自動建檔可能抓錯髮色瞳色,或混入臉紅、黑眼圈這類暫時狀態;
+      這些欄位之後每張圖都會照抄,一開始填正確,後面的圖才會穩定。
+    </p>
 
     <!-- ===== 世界背景(本聊天) ===== -->
     <div class="bbi-char-section">

@@ -651,20 +651,23 @@ function backendDefaults(url: string): BackendConn {
 }
 
 /** 新預設的預設名(遷移與建庫都用它,保持一致口徑)。 */
-const DEFAULT_WORKFLOW_NAME = '預設工作流';
+const DEFAULT_WORKFLOW_NAME = '我的工作流';
 /** 預設橫豎尺寸(與 backendDefaults 同值;預設級尺寸獨立於渠道級,故單列一份)。 */
 const DEFAULT_PORTRAIT_SIZE = '832×1216';
 const DEFAULT_LANDSCAPE_SIZE = '1216×832';
 
 let workflowSeq = 0;
 
-/** 新建一條空工作流預設(id 生成口徑同 newChannel)。 */
+/**
+ * 新建一條空工作流預設(id 生成口徑同 newChannel)。
+ * 新預設一律從「簡易引數」起步:打開就是選模型的畫面,新手不必面對空白的工作流 JSON 欄位。
+ */
 export function newComfyWorkflow(name = DEFAULT_WORKFLOW_NAME): ComfyWorkflowPreset {
   workflowSeq += 1;
   return {
     id: `wf_${Date.now()}_${workflowSeq}`,
     name,
-    mode: 'custom',
+    mode: 'simple',
     workflow: '',
     simple: simpleDefaults(),
     naturalLanguage: false,
@@ -973,9 +976,12 @@ function normalizeWorkflowPreset(raw: unknown, seq: number): ComfyWorkflowPreset
 function foldLegacyWorkflow(o: Partial<ComfyUISettings>, conn: BackendConn): ComfyWorkflowPreset {
   const legacy = o as Partial<{ workflow: unknown; naturalLanguage: unknown }>;
   const preset = newComfyWorkflow();
+  const workflow = typeof legacy.workflow === 'string' ? legacy.workflow : '';
   return {
     ...preset,
-    workflow: typeof legacy.workflow === 'string' ? legacy.workflow : '',
+    // 老使用者貼過工作流 JSON 的,搬過來照舊用自定義工作流;沒貼過的才給簡易引數
+    mode: workflow.trim() ? 'custom' : 'simple',
+    workflow,
     naturalLanguage: typeof legacy.naturalLanguage === 'boolean' ? legacy.naturalLanguage : false,
     // 渠道級橫豎尺寸下沉進預設;normalizeBackend 已做過 resolution→橫豎兩格的老遷移
     portraitSize: conn.portraitSize.trim() || preset.portraitSize,

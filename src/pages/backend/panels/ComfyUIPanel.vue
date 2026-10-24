@@ -32,6 +32,7 @@ import {
   newComfyWorkflow,
   settings,
 } from '@/state/settings';
+import { backendStatus } from '@/generate';
 import { computed, nextTick, ref, watch } from 'vue';
 
 const testing = ref(false);
@@ -42,6 +43,9 @@ const assistResult = ref<WorkflowAssistResult | null>(null);
 /** AI 預覽針對哪一套:預覽期間使用者可能切走或刪掉,應用時按 id 回寫而不是寫「當前」。 */
 const assistTargetId = ref('');
 const confirmDeleteOpen = ref(false);
+
+/** 還沒設定好(或還沒選它出圖)時,新手設定步驟預設展開。 */
+const needsSetup = settings.defaultBackend !== 'comfyui' || !backendStatus().configured;
 
 /** 本渠道是否為當前出圖渠道;「使用此渠道」按鈕與設定頁選擇器、頁籤徽標同屬一個開關。 */
 const inUse = computed(() => settings.defaultBackend === 'comfyui');
@@ -357,6 +361,16 @@ function applyAssist() {
 <template>
   <div class="panel">
     <div class="bbi-sections">
+      <Collapsible title="第一次使用？照這幾步設定" :open="needsSetup">
+        <ol class="quickstart">
+          <li>先啟動 ComfyUI，確認瀏覽器打得開 <code>http://127.0.0.1:8188</code>。</li>
+          <li>展開下方「配置」，URL 填 ComfyUI 的網址（本機就是上面那個），按「測試連線」，再按「使用此渠道出圖」。</li>
+          <li>「配置方式」選「簡易引數」→ 選模板（一般二次元模型選 Checkpoint；用 Flux、Anima 就選對應的）→ 按「拉取模型列表」→ 選模型。用 Flux、Anima 這類吃自然語言的模型，記得打開「生成自然語言」。</li>
+          <li>想用自己的工作流：在 ComfyUI 選單按 Workflow › Export (API) 匯出，貼到「自定義工作流」，外掛的助手會幫你找出要填提示詞的節點。</li>
+          <li>回到聊天，AI 回覆後會自動配圖；也可以按樓層選單「⋯」裡的調色盤按鈕手動加一張。</li>
+        </ol>
+      </Collapsible>
+
       <Collapsible title="配置" :open="false">
         <div class="api-row">
           <span class="bbi-field-label">URL</span>
@@ -1043,6 +1057,22 @@ function applyAssist() {
   align-items: center;
   margin-top: 12px;
 }
+/* 新手設定步驟:編號清單,字級與一般提示同款 */
+.quickstart {
+  margin: 0;
+  padding-left: 1.4em;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: var(--bbi-ink-soft);
+  font-size: 13px;
+  line-height: 1.7;
+}
+.quickstart code {
+  font-family: var(--bbi-font-mono);
+  font-size: 12px;
+}
+
 /* 左側「使用此渠道 / 當前出圖渠道」與右側測試連線分據兩端 */
 .conn-use,
 .conn-inuse {

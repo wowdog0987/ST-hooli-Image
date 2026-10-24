@@ -34,6 +34,7 @@ import {
   vibeMetaFromData,
 } from '@/backends/vibeStore';
 import NaiArtistManager from '@/pages/backend/panels/NaiArtistManager.vue';
+import { backendStatus } from '@/generate';
 import { acquireNaiSlot } from '@/floor/genQueue';
 import { makeJpegThumbnail } from '@/st/imageFile';
 import { deleteUserImage } from '@/st/images';
@@ -72,6 +73,8 @@ import { computed, nextTick, onMounted, ref } from 'vue';
 
 /** 本渠道是否為當前出圖渠道;「使用此渠道」按鈕與設定頁選擇器、頁籤徽標同屬一個開關。 */
 const inUse = computed(() => settings.defaultBackend === 'nai');
+/** 還沒設定好(或還沒選它出圖)時,新手設定步驟預設展開。 */
+const needsSetup = settings.defaultBackend !== 'nai' || !backendStatus().configured;
 
 const testing = ref(false);
 const showKey = ref(false);
@@ -797,6 +800,15 @@ async function removeVibe(vibe: NaiVibe) {
     </p>
 
     <div class="bbi-sections">
+      <Collapsible title="第一次使用？照這幾步設定" :open="needsSetup">
+        <ol class="quickstart">
+          <li>到 NovelAI 官網登入 → 左下角齒輪「User Settings」→「Account」→「Get Persistent API Token」，複製產生的 Token。</li>
+          <li>展開下方「配置」，在 API Key 貼上 Token（官方網址已內建，不用改），按「測試連線」，再按「使用此渠道出圖」。</li>
+          <li>選模型：4.5 只看 tag，V5 也讀得懂自然語言描述，兩者都能用。</li>
+          <li>回到聊天，AI 回覆後會自動配圖；也可以按樓層選單「⋯」裡的調色盤按鈕手動加一張。</li>
+        </ol>
+      </Collapsible>
+
       <Collapsible title="配置" :open="false">
         <!-- 接入點庫:公益站換著用的人不止一個出口,但換站只換地址+金鑰,
              模型/取樣器/尺寸等出圖引數一概留在下面,渠道級共用,切站不用重配 -->
@@ -1700,6 +1712,22 @@ async function removeVibe(vibe: NaiVibe) {
   align-items: center;
   margin-top: 12px;
 }
+/* 新手設定步驟:編號清單,字級與一般提示同款 */
+.quickstart {
+  margin: 0;
+  padding-left: 1.4em;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: var(--bbi-ink-soft);
+  font-size: 13px;
+  line-height: 1.7;
+}
+.quickstart code {
+  font-family: var(--bbi-font-mono);
+  font-size: 12px;
+}
+
 /* 左側「使用此渠道 / 當前出圖渠道」與右側測試連線分據兩端 */
 .conn-use,
 .conn-inuse {

@@ -46,7 +46,9 @@ describe('ComfyUI 工作流庫遷移', () => {
 
     expect(settings.comfyui.workflows).toHaveLength(1);
     const [preset] = settings.comfyui.workflows;
-    expect(preset.name).toBe('預設工作流');
+    expect(preset.name).toBe('我的工作流');
+    // 老使用者貼過 JSON:遷移後照舊是自定義工作流,不被新預設的簡易引數蓋掉
+    expect(preset.mode).toBe('custom');
     expect(preset.workflow).toBe('{"3":{"class_type":"KSampler","inputs":{"seed":"%seed%"}}}');
     expect(preset.naturalLanguage).toBe(true);
     expect(preset.portraitSize).toBe('1024×1536');
@@ -62,6 +64,8 @@ describe('ComfyUI 工作流庫遷移', () => {
     expect(settings.comfyui.workflows).toHaveLength(1);
     expect(settings.comfyui.workflows[0].workflow).toBe('');
     expect(settings.comfyui.activeWorkflowId).toBe(settings.comfyui.workflows[0].id);
+    // 新安裝從簡易引數起步:打開就是選模型的畫面,不用面對空白的工作流 JSON
+    expect(settings.comfyui.workflows[0].mode).toBe('simple');
   });
 
   it('老配置 workflow 是空串 → 仍建這一條(那正是使用者面對的空槽位,不是垃圾資料)', async () => {
@@ -110,7 +114,7 @@ describe('ComfyUI 工作流庫遷移', () => {
     expect(first.id).toBeTruthy();
     expect(first.name).toBe('no id');
     expect(second.id).toBeTruthy();
-    expect(second.name).toBe('預設工作流');
+    expect(second.name).toBe('我的工作流');
     // 非字串的 workflow 歸空串;空白尺寸回預設值(不能留空,否則 %width% 拿不到值)
     expect(third.workflow).toBe('');
     expect(third.portraitSize).toBe('832×1216');
